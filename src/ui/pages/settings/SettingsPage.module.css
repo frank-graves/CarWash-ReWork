@@ -1,0 +1,51 @@
+/* src/ui/pages/settings/SettingsPage.module.css
+   Tarjetas independientes: cada sección se lee sola y ninguna comparte estado con
+   las demás. El label va en mono y mayúsculas, como el resto de la app. */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  width: min(880px, 100%);
+  margin: 0 auto;
+}
+
+.loading {
+  padding: var(--space-12);
+  text-align: center;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.sectionLabel {
+  margin: 0;
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sectionHint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+@media (max-width: 680px) {
+  .card {
+    padding: var(--space-4);
+  }
+}

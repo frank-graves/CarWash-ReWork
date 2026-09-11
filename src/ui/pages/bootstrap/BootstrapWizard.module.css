@@ -1,0 +1,279 @@
+/* src/ui/pages/bootstrap/BootstrapWizard.module.css */
+
+.wizard {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: var(--space-8);
+}
+
+.header {
+  margin-bottom: var(--space-12);
+  text-align: center;
+}
+
+.title {
+  margin-bottom: var(--space-2);
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.subtitle {
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: 100%;
+  max-width: 28rem;
+  margin: 0 auto;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.label {
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.input {
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  transition:
+    border-color var(--duration-fast) var(--ease-out-expo),
+    box-shadow var(--duration-base) var(--ease-out-expo);
+}
+
+.input:hover {
+  border-color: var(--color-border-strong);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
+}
+
+.hint {
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.error {
+  margin-top: var(--space-6);
+  color: var(--color-danger);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+/* --- Teclado numérico ------------------------------------------------------ */
+
+.pinBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.pinDots {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: center;
+}
+
+.pinDot {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: var(--radius-full);
+  background: var(--color-border);
+  transition:
+    background var(--duration-fast) var(--ease-out-expo),
+    transform var(--duration-fast) var(--ease-spring);
+}
+
+.pinDotFilled {
+  background: var(--color-accent);
+  transform: scale(1.15);
+}
+
+.pinPad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-3);
+  width: 100%;
+  max-width: 20rem;
+  margin: 0 auto;
+}
+
+.key {
+  aspect-ratio: 1;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 1.5rem;
+  font-weight: 500;
+  transition:
+    transform var(--duration-fast) var(--ease-spring),
+    background var(--duration-fast) var(--ease-out-expo),
+    border-color var(--duration-fast) var(--ease-out-expo);
+}
+
+.key:hover {
+  background: var(--color-surface-hover);
+  border-color: var(--color-border-strong);
+  transform: scale(1.05);
+}
+
+.key:active {
+  transform: scale(0.95);
+}
+
+.keyGhost {
+  color: var(--color-text-muted);
+}
+
+.keySpacer {
+  visibility: hidden;
+}
+
+/* --- Consentimiento -------------------------------------------------------- */
+
+.checkboxLabel {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.checkboxLabel input {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+  margin-top: 2px;
+  accent-color: var(--color-accent);
+}
+
+/* --- Frase de recuperación ------------------------------------------------- */
+
+.warningBanner {
+  padding: var(--space-4);
+  background: var(--color-amber);
+  border-radius: var(--radius-md);
+  color: #000000;
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.phraseGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-2);
+  padding: var(--space-6);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.word {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+}
+
+.wordIndex {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
+
+.witness {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-4);
+}
+
+.witnessField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* --- Acciones -------------------------------------------------------------- */
+
+.actions {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-8);
+}
+
+.btn {
+  padding: var(--space-3) var(--space-8);
+  background: var(--color-accent);
+  border-radius: var(--radius-md);
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 600;
+  transition:
+    transform var(--duration-fast) var(--ease-out-expo),
+    background var(--duration-fast) var(--ease-out-expo),
+    box-shadow var(--duration-base) var(--ease-out-expo);
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.btn:active:not(:disabled) {
+  box-shadow: var(--shadow-sm);
+  transform: translateY(0);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 26rem) {
+  .wizard {
+    padding: var(--space-5);
+  }
+
+  .phraseGrid {
+    grid-template-columns: repeat(2, 1fr);
+    padding: var(--space-4);
+  }
+
+  .witness {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,55 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Todo denegado por defecto.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Solo usuarios autenticados (anónimos incluidos) pueden tocar datos.
+    // Un workspace se considera "reclamado" si el usuario autenticado
+    // tiene un doc en `workspaces/{id}/operators/{uid}`.
+    function isWorkspaceMember(workspaceId) {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/workspaces/$(workspaceId)/operators/$(request.auth.uid));
+    }
+
+    match /workspaces/{workspaceId} {
+      allow create: if request.auth != null;
+      allow read:   if request.auth != null;
+      allow update, delete: if false;
+
+      // El docId es el uid real de Firebase Auth: nadie puede crear un operador
+      // que no sea él mismo, y por tanto nadie puede ascender a otro. El rol vive
+      // dentro del payload cifrado, así que las reglas no pueden leerlo (no tienen
+      // la Master Key): la autorización por rol es de la capa de aplicación, y el
+      // alta de operadores por invitación llega en la Fase 6.
+      match /operators/{operatorId} {
+        allow create: if request.auth != null
+                      && request.auth.uid == operatorId;
+        allow read:   if isWorkspaceMember(workspaceId);
+        allow update, delete: if false;
+      }
+
+      match /washers/{washerId} {
+        allow read, write: if isWorkspaceMember(workspaceId);
+      }
+
+      match /settings/{settingId} {
+        allow read:  if isWorkspaceMember(workspaceId);
+        allow write: if isWorkspaceMember(workspaceId);
+      }
+
+      match /customers/{customerId} {
+        allow read, write: if isWorkspaceMember(workspaceId);
+      }
+
+      match /transactions/{transactionId} {
+        allow read:   if isWorkspaceMember(workspaceId);
+        allow create: if isWorkspaceMember(workspaceId);
+        allow update, delete: if false; // ledger inmutable
+      }
+    }
+  }
+}

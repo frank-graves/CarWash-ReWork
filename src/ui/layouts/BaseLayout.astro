@@ -1,0 +1,40 @@
+---
+// src/ui/layouts/BaseLayout.astro
+// Layout único de la aplicación. Todo el CSS es local: ni una fuente, ni un icono,
+// ni un script desde un CDN de terceros. Si algo no está en este bundle, no se carga.
+import '@styles/reset.css';
+import '@styles/tokens.css';
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="theme-color" content="#09090b" />
+    <!-- Los datos de un negocio no se indexan. Ni aquí ni en ningún sitio. -->
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" />
+    <title>Lavadero</title>
+    <!-- El tema guardado se aplica antes de que cargue el bundle: sin esto, la
+         tablet pinta un frame con el tema del sistema y salta al elegido después.
+         Va inline a propósito: un módulo llegaría tarde para evitar el flash. -->
+    <script is:inline>
+      (function () {
+        try {
+          var stored = localStorage.getItem('carwash-theme');
+          if (stored === 'light' || stored === 'dark') {
+            document.documentElement.setAttribute('data-theme', stored);
+          }
+        } catch (e) {
+          /* localStorage bloqueado (modo privado): se queda con el tema del sistema */
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>

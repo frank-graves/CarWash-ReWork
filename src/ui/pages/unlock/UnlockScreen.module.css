@@ -1,0 +1,239 @@
+/* src/ui/pages/unlock/UnlockScreen.module.css */
+
+.unlock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: var(--space-8);
+}
+
+.title {
+  margin-bottom: var(--space-8);
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.dots {
+  display: flex;
+  gap: var(--space-4);
+  margin-bottom: var(--space-8);
+}
+
+.dot {
+  width: 1rem;
+  height: 1rem;
+  border-radius: var(--radius-full);
+  background: var(--color-border);
+  transition:
+    background var(--duration-fast) var(--ease-spring),
+    transform var(--duration-fast) var(--ease-spring);
+}
+
+.dot.filled {
+  background: var(--color-accent);
+  transform: scale(1.2);
+}
+
+.error {
+  margin-bottom: var(--space-4);
+  color: var(--color-danger);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.lockout {
+  margin-bottom: var(--space-4);
+  color: var(--color-amber);
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.pad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4);
+  width: 100%;
+  max-width: 20rem;
+  margin-bottom: var(--space-8);
+}
+
+.key {
+  aspect-ratio: 1;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  font-size: 1.5rem;
+  font-weight: 500;
+  transition:
+    transform var(--duration-fast) var(--ease-spring),
+    background var(--duration-fast) var(--ease-out-expo),
+    border-color var(--duration-fast) var(--ease-out-expo);
+}
+
+.key:hover:not(:disabled) {
+  background: var(--color-surface-hover);
+  border-color: var(--color-border-strong);
+  transform: scale(1.05);
+}
+
+.key:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.key:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.keyGhost {
+  color: var(--color-text-muted);
+}
+
+.keySpacer {
+  visibility: hidden;
+}
+
+.link {
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color var(--duration-fast) var(--ease-out-expo);
+}
+
+.link:hover {
+  color: var(--color-text);
+}
+
+/* --- Modal de recuperación -------------------------------------------------
+   Sin `backdrop-filter`: el desenfoque se paga en GPU en cada frame y aquí no
+   hay nada detrás que merezca la pena desenfocar. Solo transform y opacity. */
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  background: rgb(0 0 0 / 0.78);
+  animation: veil var(--duration-base) var(--ease-out-expo);
+}
+
+.modal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+  max-width: 24rem;
+  padding: var(--space-8);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  animation: rise var(--duration-base) var(--ease-out-expo);
+}
+
+.modalTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.modalHint {
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.textarea {
+  min-height: 100px;
+  padding: var(--space-3);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.input {
+  padding: var(--space-3);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  letter-spacing: 0.25em;
+}
+
+.textarea:focus,
+.input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.btnSecondary {
+  padding: var(--space-2) var(--space-4);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  transition: border-color var(--duration-fast) var(--ease-out-expo);
+}
+
+.btnSecondary:hover:not(:disabled) {
+  border-color: var(--color-border-strong);
+}
+
+.btn {
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-accent);
+  border-radius: var(--radius-md);
+  color: #ffffff;
+  font-weight: 600;
+  transition: background var(--duration-fast) var(--ease-out-expo);
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+}
+
+.btn:disabled,
+.btnSecondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@keyframes veil {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}

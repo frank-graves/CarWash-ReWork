@@ -1,17 +1,25 @@
 ---
-
+// src/pages/index.astro
+// Única ruta de la aplicación. El HTML nace vacío y el cliente decide qué pintar:
+// la bóveda vive en el dispositivo, así que no hay nada útil que renderizar aquí.
+import BaseLayout from '@ui/layouts/BaseLayout.astro';
 ---
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
-</html>
+<BaseLayout>
+  <div id="app-root"></div>
+
+  <noscript>
+    <div class="no-script">
+      Esta aplicación cifra y descifra en tu dispositivo, con la Web Crypto API del navegador.
+      Sin JavaScript no hay criptografía, así que no hay nada que mostrar: no es un capricho de
+      desarrollo, es que aquí no hay servidor que pueda hacerlo por ti.
+    </div>
+  </noscript>
+
+  <script>
+    import { mountApp } from '@ui/pages/boot';
+
+    const root = document.getElementById('app-root');
+    if (root) void mountApp(root);
+  </script>
+</BaseLayout>

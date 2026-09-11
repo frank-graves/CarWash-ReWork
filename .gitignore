@@ -1,24 +1,46 @@
 # build output
 dist/
+
 # generated types
 .astro/
 
 # dependencies
 node_modules/
 
+# lockfiles del gestor que NO uses (usas pnpm → ignora npm/yarn)
+package-lock.json
+yarn.lock
+
 # logs
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+firestore-debug.log
 
+# tests / coverage
+coverage/
+*.tsbuildinfo
 
 # environment variables
 .env
-.env.production
+.env.*
+!.env.example
 
-# macOS-specific files
+# firebase
+service-account.json
+
+# archivos temporales / generados
+project_tree.txt
+probe-*.txt
+
+# macOS
 .DS_Store
 
-# jetbrains setting folder
+# JetBrains
 .idea/
+
+# cachés
+.cache/
+.vite/

@@ -1,0 +1,51 @@
+.overlay {
+  position: fixed; inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 100;
+  animation: fadeIn 150ms ease-out;
+}
+
+.modal {
+  background: var(--color-surface);
+  padding: var(--space-6);
+  border-radius: var(--radius-lg);
+  width: 100%; max-width: 400px;
+  display: flex; flex-direction: column; gap: var(--space-4);
+  box-shadow: var(--shadow-lg);
+}
+
+.title { font-size: 22px; font-weight: 600; color: var(--color-text); margin: 0; }
+
+.label {
+  display: flex; flex-direction: column; gap: var(--space-1);
+  font-size: 13px; color: var(--color-text-muted); font-weight: 500;
+}
+
+.input {
+  padding: var(--space-3);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  font-size: 15px;
+}
+.input:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+
+.error { color: var(--color-danger); font-size: 13px; margin: 0; }
+
+.actions { display: flex; gap: var(--space-3); justify-content: flex-end; margin-top: var(--space-2); }
+
+.btnCancel, .btnSave {
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  font-weight: 500; cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out-expo);
+}
+.btnCancel { background: transparent; border: 1px solid var(--color-border); color: var(--color-text); }
+.btnCancel:hover { background: var(--color-surface-hover); }
+
+.btnSave { background: var(--color-accent); border: none; color: white; }
+.btnSave:disabled { opacity: 0.6; cursor: not-allowed; }
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }

@@ -2,19 +2,27 @@
   "name": "carwash-rework",
   "type": "module",
   "version": "0.0.1",
-  "engines": {
-    "node": ">=22.12.0"
-  },
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
-    "astro": "^7.3.2"
+    "@preact/signals": "^2.11.2",
+    "astro": "^7.3.2",
+    "firebase": "^12.18.0",
+    "preact": "^10.29.8"
   },
-  "allowScripts": {
-    "esbuild": true
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.12",
+    "@firebase/rules-unit-testing": "^5.0.2",
+    "fake-indexeddb": "^6.0.0",
+    "firebase-tools": "^15.29.0",
+    "happy-dom": "^20.14.0",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.0"
   }
 }

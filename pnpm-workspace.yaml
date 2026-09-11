@@ -1,0 +1,12 @@
+# pnpm-workspace.yaml
+# Este archivo es el nuevo hogar de la configuración de pnpm en la versión 11.
+# La sección `allowBuilds` reemplaza a la antigua `onlyBuiltDependencies`
+# y es un mapa que indica explícitamente qué paquetes pueden ejecutar
+# scripts de compilación durante la instalación[reference:1].
+
+allowBuilds:
+  '@firebase/util': true
+  esbuild: true
+  protobufjs: true
+  '@biomejs/biome': true
+  re2: true
