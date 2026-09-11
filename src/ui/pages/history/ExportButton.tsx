@@ -21,6 +21,13 @@ export function ExportButton({ transactions }: Props) {
   });
 
   const handleExport = () => {
+    const ok = window.confirm(
+      'Este archivo no está cifrado y contiene datos de clientes en claro.\n' +
+      'Se guardará en tu carpeta de Descargas. ¿Continuar?\n\n' +
+      'Bórralo cuando termines de usarlo.'
+    );
+    if (!ok) return;
+
     const csvContent = transactionsToCsv(transactions);
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);

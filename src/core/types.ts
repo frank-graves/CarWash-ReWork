@@ -35,7 +35,7 @@ export interface CustomerPII {
 export interface CustomerDocument {
   customerId: string;
   payload: string;              // AES-GCM(JSON(CustomerPII))
-  plateHash: string;            // SHA-256(plate) para búsqueda exacta
+  plateHash: string;            // HMAC-SHA256(plate, hmacKey del vault)
   accumulatedWashes: number;    // 0..6, en claro para lógica de lealtad
   lastResetAt: Timestamp | null;
   lastWashAt: Timestamp | null;
@@ -68,9 +68,11 @@ export interface WashTransactionDocument {
 
 export interface OperatorDocument {
   operatorId: string;
-  payload: string;              // AES-GCM(JSON({ displayName, role }))
+  payload: string;              // AES-GCM(JSON({ displayName })) — solo nombre
+  rolePublic: OperatorRole;     // 'owner' | 'staff' en claro. Firestore Rules
+                                // lo lee sin descifrar.
   createdAt: Timestamp;
-  schemaVersion: 2;             // bump por cambio de schema en payload
+  schemaVersion: 3;             // bump: el rol sale del payload a rolePublic
 }
 
 export interface OperatorView {

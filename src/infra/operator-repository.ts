@@ -16,11 +16,6 @@ import { SessionKeyManager } from '@infra/session-key';
 import type { FirebaseRuntime } from '@infra/firebase-bootstrap';
 import type { OperatorDocument, OperatorRole, OperatorView } from '@core/types';
 
-interface OperatorPayload {
-  displayName: string;
-  role: OperatorRole;
-}
-
 export class OperatorRepository {
   private readonly collectionPath: string;
 
@@ -39,23 +34,53 @@ export class OperatorRepository {
 
     const operatorRef = doc(this.runtime.db, this.collectionPath, uid);
     const existing = await getDoc(operatorRef);
-
-    if (existing.exists()) {
-      return uid;
-    }
+    if (existing.exists()) return uid;
 
     const key = SessionKeyManager.getKey();
-    const payload: OperatorPayload = { displayName: operatorName, role: 'owner' };
+    const payload = { displayName: operatorName };
     const encryptedPayload = await PrivacyVault.encryptPayload(payload, key);
 
     await setDoc(operatorRef, {
       operatorId: uid,
       payload: encryptedPayload,
+      rolePublic: 'owner',
       createdAt: serverTimestamp(),
-      schemaVersion: 2,
+      schemaVersion: 3,
     });
 
     return uid;
+  }
+
+  /**
+   * Migra el doc del operador activo de schemaVersion 2 a 3 añadiendo
+   * `rolePublic: 'owner'` en claro. Sin este campo, la regla de settings
+   * rechaza con permission-denied al owner legítimo que se registró antes
+   * de 5.5c. v2 no distinguía roles, así que el único operador posible es
+   * el dueño. No-op si ya es v3.
+   *
+   * Se llama al arrancar el shell, no desde ensureBootstrap: ese solo corre
+   * una vez, y la migración tiene que dispararse en cualquier dispositivo
+   * que abra la app con un doc v2.
+   */
+  async migrateLegacyRole(): Promise<void> {
+    const uid = this.runtime.auth.currentUser?.uid;
+    if (!uid) return;
+
+    const operatorRef = doc(this.runtime.db, this.collectionPath, uid);
+    const existing = await getDoc(operatorRef);
+    if (!existing.exists()) return;
+
+    const data = existing.data() as Partial<OperatorDocument>;
+    if (data.schemaVersion === 3 && data.rolePublic !== undefined) return;
+
+    await setDoc(
+      operatorRef,
+      {
+        rolePublic: 'owner',
+        schemaVersion: 3,
+      },
+      { merge: true },
+    );
   }
 
   async listAll(): Promise<OperatorView[]> {
@@ -69,14 +94,15 @@ export class OperatorRepository {
         const payload = (await PrivacyVault.decryptPayload(
           data.payload,
           key
-        )) as Partial<OperatorPayload>;
+        )) as { displayName: string };
 
-        // Fallback para schemaVersion 1 (legacy sin role en el payload)
-        const role = payload.role ?? 'owner';
+        // Fallback para docs v2: sin rolePublic en el doc raíz, asumimos owner.
+        // Solo pasa en instalaciones creadas antes de 5.5c; los nuevos ya nacen v3.
+        const role: OperatorRole = data.rolePublic ?? 'owner';
 
         return {
           id: d.id,
-          displayName: payload.displayName ?? 'Operador legacy',
+          displayName: payload.displayName,
           role,
         };
       })

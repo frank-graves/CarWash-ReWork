@@ -3,43 +3,9 @@
 // Usamos Web Crypto API nativa para evitar dependencias de 500KB como crypto-js.
 
 const cryptoEngine = globalThis.crypto;
-const PBKDF2_ITERATIONS = 100_000;
-const AES_KEY_LENGTH = 256;
 const IV_LENGTH_BYTES = 12; // Estándar NIST para GCM
 
 export class PrivacyVault {
-  /**
-   * Deriva una clave maestra a partir de una passphrase y un salt.
-   * La clave es no-extraíble para que nunca pueda ser leída como texto plano
-   * desde la memoria JS, solo usada por el motor criptográfico del navegador.
-   */
-  static async deriveKey(
-      passphrase: string,
-      salt: Uint8Array<ArrayBuffer>
-    ): Promise<CryptoKey> {
-    const encoder = new TextEncoder();
-    const keyMaterial = await cryptoEngine.subtle.importKey(
-      'raw',
-      encoder.encode(passphrase),
-      'PBKDF2',
-      false,
-      ['deriveKey']
-    );
-
-    return cryptoEngine.subtle.deriveKey(
-      {
-        name: 'PBKDF2',
-        salt,
-        iterations: PBKDF2_ITERATIONS,
-        hash: 'SHA-256',
-      },
-      keyMaterial,
-      { name: 'AES-GCM', length: AES_KEY_LENGTH },
-      false, // non-extractable: el motor de JS no puede ver los bytes crudos
-      ['encrypt', 'decrypt']
-    );
-  }
-
   /**
    * Sella un objeto arbitrario. El IV viaja junto al ciphertext en el mismo bundle
    * porque GCM lo requiere para el descifrado y no es secreto.

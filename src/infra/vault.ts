@@ -343,10 +343,14 @@ export class Vault {
     return { recoveryPhrase };
   }
 
-  static async unlockWithPin(pin: string): Promise<void> {
+  /**
+   * Verifica un PIN contra el blobPin y aplica el rate limiting compartido.
+   * Extraído para que changePin comparta el mismo lockout que unlockWithPin:
+   * antes eran dos puertas al mismo secreto, y solo una tenía freno.
+   */
+  private static async verifyPin(pin: string): Promise<ArrayBuffer> {
     const now = Date.now();
     const lockedUntil = (await read<number>(Slot.lockedUntil)) ?? 0;
-
     if (now < lockedUntil) {
       const seconds = Math.ceil((lockedUntil - now) / 1000);
       throw new Error(`Dispositivo bloqueado. Vuelve a intentarlo en ${seconds}s.`);
@@ -372,7 +376,43 @@ export class Vault {
       [Slot.failedAttempts, 0],
       [Slot.lockedUntil, 0],
     ]);
+    return combined;
+  }
 
+  /**
+   * Verifica la frase de recuperación con el mismo rate limiting que el PIN.
+   * Sin esto, la frase de 12 palabras era una vía sin coste al mismo secreto.
+   */
+  private static async verifyPhrase(phrase: string): Promise<ArrayBuffer> {
+    const now = Date.now();
+    const lockedUntil = (await read<number>(Slot.lockedUntil)) ?? 0;
+    if (now < lockedUntil) {
+      const seconds = Math.ceil((lockedUntil - now) / 1000);
+      throw new Error(`Dispositivo bloqueado. Vuelve a intentarlo en ${seconds}s.`);
+    }
+
+    const saltPhrase = await read<ArrayBuffer>(Slot.saltPhrase);
+    const ivPhrase = await read<ArrayBuffer>(Slot.ivPhrase);
+    const blobPhrase = await read<ArrayBuffer>(Slot.blobPhrase);
+    if (!saltPhrase || !ivPhrase || !blobPhrase) {
+      throw new Error('Este dispositivo no tiene una bóveda configurada');
+    }
+
+    const combined = await unwrapSecrets(phrase, saltPhrase, ivPhrase, blobPhrase);
+    if (!combined) {
+      await registerFailure(now).catch(() => undefined);
+      throw new Error('Frase de recuperación incorrecta');
+    }
+
+    await write([
+      [Slot.failedAttempts, 0],
+      [Slot.lockedUntil, 0],
+    ]);
+    return combined;
+  }
+
+  static async unlockWithPin(pin: string): Promise<void> {
+    const combined = await Vault.verifyPin(pin);
     const secrets = new Uint8Array(combined);
     const masterKeyBytes = secrets.slice(0, MASTER_KEY_BYTES);
     const hmacKeyBytes = secrets.slice(MASTER_KEY_BYTES, MASTER_KEY_BYTES + HMAC_KEY_BYTES);
@@ -399,17 +439,9 @@ export class Vault {
     if (!isRecoveryPhrase(canonical)) {
       throw new Error('Frase de recuperación inválida');
     }
-    if (!PIN_PATTERN.test(newPin)) throw new Error('El PIN debe tener exactamente 6 dígitos');
+    if (!PIN_PATTERN.test(newPin)) throw new Error('El nuevo PIN debe tener exactamente 6 dígitos');
 
-    const saltPhrase = await read<ArrayBuffer>(Slot.saltPhrase);
-    const ivPhrase = await read<ArrayBuffer>(Slot.ivPhrase);
-    const blobPhrase = await read<ArrayBuffer>(Slot.blobPhrase);
-    if (!saltPhrase || !ivPhrase || !blobPhrase) {
-      throw new Error('Este dispositivo no tiene una bóveda configurada');
-    }
-
-    const combined = await unwrapSecrets(canonical, saltPhrase, ivPhrase, blobPhrase);
-    if (!combined) throw new Error('Frase de recuperación incorrecta');
+    const combined = await Vault.verifyPhrase(canonical);
 
     // Rotamos también el salt del PIN. Reutilizar el viejo daría dos derivaciones del
     // mismo material contra el mismo salt, y el PBKDF2 extra lo pagamos igual. En el
@@ -444,24 +476,13 @@ export class Vault {
    * también con la tablet recién encendida y bloqueada.
    */
   static async changePin(currentPin: string, newPin: string): Promise<void> {
-    if (!PIN_PATTERN.test(currentPin)) {
-      throw new Error('El PIN actual debe tener exactamente 6 dígitos');
-    }
     if (!PIN_PATTERN.test(newPin)) {
       throw new Error('El nuevo PIN debe tener exactamente 6 dígitos');
     }
 
-    const saltPin = await read<ArrayBuffer>(Slot.saltPin);
-    const ivPin = await read<ArrayBuffer>(Slot.ivPin);
-    const blobPin = await read<ArrayBuffer>(Slot.blobPin);
-    if (!saltPin || !ivPin || !blobPin) {
-      throw new Error('Este dispositivo no tiene una bóveda configurada');
-    }
-
-    const combined = await unwrapSecrets(currentPin, saltPin, ivPin, blobPin);
-    if (!combined) {
-      throw new Error('PIN actual incorrecto');
-    }
+    // verifyPin aplica rate limiting compartido con unlockWithPin.
+    // Un PIN actual incorrecto cuenta como fallo y alimenta el lockout.
+    const combined = await Vault.verifyPin(currentPin);
 
     // Salt y IV frescos: el PIN nuevo no comparte derivación con el viejo, y el
     // blobPin anterior (si alguien lo copió) no sirve para nada tras la rotación.

@@ -4,26 +4,33 @@ import { PrivacyVault } from '@infra/crypto';
 import { hashPlate } from '@infra/hashing';
 
 describe('PrivacyVault', () => {
-  const passphrase = 'correct-horse-battery-staple';
-  const salt = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
-  
   const samplePII = {
     displayName: 'Juan Pérez',
     plate: 'ABC-123',
     phone: '+51999888777',
   };
 
+  // Antes estas pruebas sacaban la clave de PrivacyVault.deriveKey, borrado por
+  // código muerto: la derivación canónica vive en vault.ts con 200k iteraciones.
+  // Para un round-trip basta una clave AES-GCM, generada igual que freshHmacKey().
+  function freshAesKey(): Promise<CryptoKey> {
+    return crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, [
+      'encrypt',
+      'decrypt',
+    ]);
+  }
+
   it('preserva la integridad del objeto en un ciclo encrypt -> decrypt', async () => {
-    const key = await PrivacyVault.deriveKey(passphrase, salt);
+    const key = await freshAesKey();
     const bundle = await PrivacyVault.encryptPayload(samplePII, key);
     const decrypted = await PrivacyVault.decryptPayload(bundle, key);
     
     expect(decrypted).toEqual(samplePII);
   });
 
-  it('falla al descifrar con una passphrase incorrecta (clave derivada distinta)', async () => {
-    const keyA = await PrivacyVault.deriveKey(passphrase, salt);
-    const keyB = await PrivacyVault.deriveKey('wrong-passphrase', salt);
+  it('falla al descifrar con una clave distinta (el tag GCM no valida)', async () => {
+    const keyA = await freshAesKey();
+    const keyB = await freshAesKey();
     
     const bundle = await PrivacyVault.encryptPayload(samplePII, keyA);
     
@@ -31,7 +38,7 @@ describe('PrivacyVault', () => {
   });
 
   it('detecta alteraciones en el ciphertext (integridad GCM)', async () => {
-    const key = await PrivacyVault.deriveKey(passphrase, salt);
+    const key = await freshAesKey();
     const bundle = await PrivacyVault.encryptPayload(samplePII, key);
     
     // Bit-flip en el último carácter del base64 (corrompe el ciphertext o el tag MAC)
@@ -41,7 +48,7 @@ describe('PrivacyVault', () => {
   });
 
   it('genera ciphertexts distintos para el mismo input (IV aleatorio)', async () => {
-    const key = await PrivacyVault.deriveKey(passphrase, salt);
+    const key = await freshAesKey();
     const bundle1 = await PrivacyVault.encryptPayload(samplePII, key);
     const bundle2 = await PrivacyVault.encryptPayload(samplePII, key);
     

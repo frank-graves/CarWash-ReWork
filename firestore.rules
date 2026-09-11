@@ -29,7 +29,17 @@ service cloud.firestore {
         allow create: if request.auth != null
                       && request.auth.uid == operatorId;
         allow read:   if isWorkspaceMember(workspaceId);
-        allow update, delete: if false;
+        // Self-update acotado al backfill v2 → v3. El operador activo puede
+        // añadirse `rolePublic: 'owner'` (v2 no distinguía roles y el primer
+        // operador que se auto-registró siempre fue el dueño) y bumpear
+        // schemaVersion. Cualquier otro cambio en el mismo update lo rechaza.
+        // `delete` sigue prohibido: nadie borra operadores, ni siquiera el owner.
+        allow update: if request.auth != null
+                      && request.auth.uid == operatorId
+                      && request.resource.data.diff(resource.data).affectedKeys()
+                           .hasOnly(['rolePublic', 'schemaVersion'])
+                      && request.resource.data.rolePublic == 'owner';
+        allow delete: if false;
       }
 
       match /washers/{washerId} {
@@ -38,7 +48,10 @@ service cloud.firestore {
 
       match /settings/{settingId} {
         allow read:  if isWorkspaceMember(workspaceId);
-        allow write: if isWorkspaceMember(workspaceId);
+        // Solo el owner puede mutar settings. El rol vive en claro en el doc del
+        // operador precisamente para que esta regla no requiera descifrar el PII.
+        allow write: if isWorkspaceMember(workspaceId)
+                     && get(/databases/$(database)/documents/workspaces/$(workspaceId)/operators/$(request.auth.uid)).data.rolePublic == 'owner';
       }
 
       match /customers/{customerId} {

@@ -228,10 +228,12 @@ describe('Vault.changePin', () => {
     expect(Vault.isUnlocked()).toBe(true);
   });
 
-  it('con el PIN actual incorrecto lanza y no toca la bóveda', async () => {
+  it('con el PIN actual incorrecto lanza, cuenta el fallo y no toca la bóveda', async () => {
     await Vault.initDevice({ workspaceId: WORKSPACE, pin: PIN });
 
-    await expect(Vault.changePin('000000', OTHER_PIN)).rejects.toThrow('PIN actual incorrecto');
+    // El mensaje ya no distingue "actual": changePin pasa por verifyPin, la misma
+    // puerta que unlockWithPin, y un PIN equivocado es un PIN equivocado.
+    await expect(Vault.changePin('000000', OTHER_PIN)).rejects.toThrow('PIN incorrecto');
 
     // El PIN de siempre sigue abriendo: la bóveda quedó intacta.
     Vault.lock();
@@ -254,10 +256,12 @@ describe('Vault.changePin', () => {
     expect(await hashPlate('ABC-123', Vault.getHmacKey())).toBe(before);
   });
 
-  it('exige el formato de 6 dígitos en ambos PINs', async () => {
+  it('exige el formato de 6 dígitos solo en el PIN nuevo', async () => {
     await Vault.initDevice({ workspaceId: WORKSPACE, pin: PIN });
 
-    await expect(Vault.changePin('12345', OTHER_PIN)).rejects.toThrow('PIN actual');
+    // El PIN actual ya no se valida por formato: '12345' no abre el blob, verifyPin
+    // lo cuenta como fallo y responde 'PIN incorrecto'. Rechazado igual, con otro texto.
+    await expect(Vault.changePin('12345', OTHER_PIN)).rejects.toThrow('PIN incorrecto');
     await expect(Vault.changePin(PIN, 'abc')).rejects.toThrow('El nuevo PIN');
   });
 });

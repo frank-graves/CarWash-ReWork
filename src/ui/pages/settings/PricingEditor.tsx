@@ -75,6 +75,16 @@ export function PricingEditor({ runtime, workspaceId, operatorId }: Props) {
   const handleChange = (vehicle: VehicleKind, tier: ServiceTier, raw: string) => {
     const parsed = Number(raw);
     if (!Number.isFinite(parsed) || parsed < 0) return;
+
+    if (parsed === 0) {
+      const ok = window.confirm(
+        `¿Poner el precio de ${VEHICLE_LABELS[vehicle]} · ${SERVICE_LABELS[tier]} en 0?\n\n` +
+        `Si es una promoción temporal, considera dejarlo como estaba y aplicar un ` +
+        `descuento manual al registrar.`,
+      );
+      if (!ok) return;
+    }
+
     const next = cloneMatrix(matrix.value);
     next[vehicle] = { ...next[vehicle], [tier]: parsed };
     matrix.value = next;

@@ -41,6 +41,12 @@ export function AppShell() {
         const workspaceId = await Vault.getWorkspaceId();
         if (!uid || !workspaceId) return;
 
+        // Migración v2 → v3 del operador activo. Se dispara en cada arranque del
+        // shell (es no-op si ya es v3). Sin esto, un operador creado antes de 5.5c
+        // no puede escribir settings porque la rule le exige rolePublic en claro.
+        const operatorRepo = new OperatorRepository(runtime, workspaceId);
+        await operatorRepo.migrateLegacyRole();
+
         // El documento del workspace es el propio workspaces/{id}: un nivel y no
         // una subcolección /meta, que Firestore rechaza por número impar de segmentos.
         const workspace = await getDoc(doc(runtime.db, 'workspaces', workspaceId));
@@ -54,7 +60,7 @@ export function AppShell() {
         }
         businessName.value = (workspace.data() as { name: string }).name;
 
-        const operators = await new OperatorRepository(runtime, workspaceId).listAll();
+        const operators = await operatorRepo.listAll();
         const me = operators.find((operator) => operator.id === uid);
         if (me) {
           operatorName.value = me.displayName;
