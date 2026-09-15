@@ -34,6 +34,11 @@ function toDateInputValue(date: Date): string {
  * componentes explícitos para mantenerlo en el huso del operador.
  */
 function parseDateInput(value: string): Date {
+  // Campo vacío: caemos a hoy. Sin este early-return, ''.split('-') da
+  // [''], Number('') es 0, y 0 ?? 1970 evalúa a 0 (el ?? solo atrapa
+  // null/undefined) → un lavado con fecha 1900 entraría al ledger.
+  if (!value) return new Date();
+
   const [y, m, d] = value.split('-').map(Number);
   return new Date(y ?? 1970, (m ?? 1) - 1, d ?? 1);
 }

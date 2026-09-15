@@ -15,6 +15,7 @@ import { PricingEditor } from './PricingEditor';
 import { PinChangeForm } from './PinChangeForm';
 import { WasherManager } from './WasherManager';
 import { OperatorList } from './OperatorList';
+import { ImportModal } from './ImportModal';
 import type { FirebaseRuntime } from '@infra/firebase-bootstrap';
 import styles from './SettingsPage.module.css';
 
@@ -22,6 +23,7 @@ export function SettingsPage() {
   const runtime = useSignal<FirebaseRuntime | null>(null);
   const workspaceId = useSignal<string | null>(null);
   const operatorId = useSignal<string | null>(null);
+  const showImport = useSignal(false);
 
   useSignalEffect(() => {
     bootstrapFirebase().then(async (rt) => {
@@ -74,6 +76,30 @@ export function SettingsPage() {
         <p class={styles.sectionHint}>Operadores con acceso a esta tablet.</p>
         <OperatorList runtime={rt} workspaceId={ws} />
       </section>
+
+      <section class={styles.card}>
+        <h2 class={styles.sectionLabel}>Importar histórico</h2>
+        <p class={styles.sectionHint}>
+          Cargar lavados registrados en papel o en otro sistema. Pegá un array
+          JSON con las transacciones.
+        </p>
+        <button
+          type="button"
+          class={styles.importBtn}
+          onClick={() => { showImport.value = true; }}
+        >
+          Abrir importador
+        </button>
+      </section>
+
+      {showImport.value && (
+        <ImportModal
+          runtime={rt}
+          workspaceId={ws}
+          onClose={() => { showImport.value = false; }}
+          onImported={() => { showImport.value = false; }}
+        />
+      )}
     </div>
   );
 }

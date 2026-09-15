@@ -4,6 +4,7 @@ import { Vault } from '@infra/vault';
 import { CustomerRepository } from '@infra/customer-repository';
 import { NewCustomerModal } from '../wash/NewCustomerModal';
 import { EditCustomerModal } from './EditCustomerModal';
+import { ViewCustomerModal } from './ViewCustomerModal';
 import { CustomerCard } from './CustomerCard';
 import type { CustomerView } from '@core/types';
 import type { FirebaseRuntime } from '@infra/firebase-bootstrap';
@@ -17,6 +18,7 @@ export function CustomersPage() {
   
   const showNewModal = useSignal(false);
   const editingCustomer = useSignal<CustomerView | null>(null);
+  const viewingCustomer = useSignal<CustomerView | null>(null);
 
   useSignalEffect(() => {
     bootstrapFirebase().then(async (rt) => {
@@ -86,7 +88,7 @@ export function CustomersPage() {
             <CustomerCard 
               key={c.customerId} 
               customer={c} 
-              onEdit={(cust) => { editingCustomer.value = cust; }}
+              onView={(cust) => { viewingCustomer.value = cust; }}
             />
           ))}
         </div>
@@ -99,6 +101,20 @@ export function CustomersPage() {
           initialPlate=""
           onClose={() => { showNewModal.value = false; }}
           onCreated={handleCreated}
+        />
+      )}
+
+      {viewingCustomer.value && runtime.value && workspaceId.value && (
+        <ViewCustomerModal
+          customer={viewingCustomer.value}
+          onClose={() => { viewingCustomer.value = null; }}
+          onEdit={(cust) => {
+            // Transición: cerrar el de vista y abrir el de edición con el
+            // mismo cliente. El usuario no ve un flash de modal porque ambos
+            // comparten la misma capa z-index con backdrop continuo.
+            viewingCustomer.value = null;
+            editingCustomer.value = cust;
+          }}
         />
       )}
 

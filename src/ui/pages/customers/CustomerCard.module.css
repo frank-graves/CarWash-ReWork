@@ -51,7 +51,17 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: var(--space-3);
   margin-top: var(--space-2);
+}
+
+/* Fecha + ojo, pegados a la derecha y sin encogerse: el que cede espacio es el
+   nombre de arriba, no esta fila. */
+.bottomRight {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
 }
 
 .date {
@@ -60,12 +70,12 @@
   color: var(--color-text-muted);
 }
 
-.editBtn {
-  position: absolute;
-  bottom: var(--space-3);
-  right: var(--space-3);
+/* En flujo, no absoluto: la versión anterior se posaba encima de la fecha del
+   último lavado y la tapaba en cuanto el texto crecía. */
+.viewBtn {
   width: 32px;
   height: 32px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -73,22 +83,51 @@
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   color: var(--color-text-muted);
-  opacity: 0;
-  transition: opacity var(--duration-fast) var(--ease-out-expo), 
-              background var(--duration-fast) var(--ease-out-expo),
-              border-color var(--duration-fast) var(--ease-out-expo);
   cursor: pointer;
+  transition:
+    color var(--duration-fast) var(--ease-out-expo),
+    background var(--duration-fast) var(--ease-out-expo),
+    border-color var(--duration-fast) var(--ease-out-expo);
 }
-.card:hover .editBtn { opacity: 1; }
-.editBtn:hover {
+.viewBtn:hover {
   background: var(--color-surface-hover);
   border-color: var(--color-border);
   color: var(--color-text);
 }
 
+/* Cliente con 6 lavados: listo para reclamar el 7mo gratis. El borde ámbar +
+   tinte sutil hacen que la card destaque en la lista sin gritar como un error.
+   El badge y el ✱ ámbar de los sellos refuerzan el mensaje desde dos ángulos. */
+.readyForReward {
+  border-color: var(--color-amber);
+  background: linear-gradient(
+    180deg,
+    rgb(var(--color-amber-rgb) / 0.06),
+    var(--color-surface) 60%
+  );
+}
+.readyForReward:hover {
+  border-color: var(--color-amber);
+}
+
+.rewardBadge {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  padding: 2px 6px;
+  background: var(--color-amber);
+  color: #0a0a0a;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-radius: var(--radius-sm);
+}
+
 /* --- Móvil (hasta 639px) ----------------------------------------------------
-   El botón de edición se revelaba solo con :hover, y en una tablet sin ratón
-   el hover no llega: se queda invisible. En móvil se muestra siempre. */
+   El botón ya no se esconde tras el :hover, así que aquí solo se aprieta el
+   aire: la tarjeta cabe en una columna sin solaparse con nada. */
 @media (max-width: 639.98px) {
   .card {
     padding: var(--space-3);
@@ -97,9 +136,5 @@
 
   .name {
     font-size: 20px;
-  }
-
-  .editBtn {
-    opacity: 1;
   }
 }

@@ -44,6 +44,39 @@
   font-size: 13px;
 }
 
+/* Outline y mono, hermano del botón "Recalcular lealtad" de EditCustomerModal:
+   es una acción de mantenimiento, no el camino feliz de la pantalla. */
+.importBtn {
+  align-self: flex-start;
+  padding: var(--space-2) var(--space-4);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  cursor: pointer;
+  transition:
+    color var(--duration-fast) var(--ease-out-expo),
+    border-color var(--duration-fast) var(--ease-out-expo),
+    background var(--duration-fast) var(--ease-out-expo);
+}
+
+.importBtn:hover {
+  color: var(--color-text);
+  border-color: var(--color-accent);
+  background: var(--color-surface-hover);
+}
+
+.importBtn:active {
+  transform: scale(0.98);
+}
+
+.importBtn:focus-visible {
+  outline: 2px solid rgb(var(--color-accent-rgb) / 0.5);
+  outline-offset: 2px;
+}
+
 /* El corte de móvil va en 639.98 y no en 680 para casar con el rango móvil
    (< 640) del resto de la app: en tablet la tarjeta conserva su aire. */
 @media (max-width: 639.98px) {
