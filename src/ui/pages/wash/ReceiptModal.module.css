@@ -2,6 +2,8 @@
   position: fixed; inset: 0;
   background: rgba(0, 0, 0, 0.7);
   display: flex; align-items: center; justify-content: center;
+  /* Sin este padding el recibo toca los bordes en un móvil de 320px. */
+  padding: var(--space-4);
   z-index: 100;
 }
 
@@ -49,3 +51,7 @@
 .btnWa { background: #25D366; color: white; }
 .btnClose { background: transparent; border: 1px solid var(--color-border); color: var(--color-text); cursor: pointer; }
 .btnClose:hover { background: var(--color-surface-hover); }
+
+@media (max-width: 639.98px) {
+  .modal { padding: var(--space-5); }
+}

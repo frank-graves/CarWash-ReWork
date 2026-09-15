@@ -145,12 +145,38 @@
   font-size: 1.5rem;
 }
 
-@media (max-width: 30rem) {
+/* --- Móvil (hasta 639px) ----------------------------------------------------
+   El nombre del operador se cae: en 320px el header es el negocio, el botón de
+   tema y el candado. 639.98 casa con el `min-width: 640px` de las rejillas. */
+@media (max-width: 639.98px) {
   .header {
     padding: var(--space-3) var(--space-4);
+    gap: var(--space-2);
+  }
+
+  .operator {
+    display: none;
+  }
+
+  .trouble {
+    padding: var(--space-2) var(--space-4);
   }
 
   .content {
-    padding: var(--space-5);
+    padding: var(--space-4);
+  }
+
+  /* Cuatro tabs no entran a 320px sin partir "Registrar lavado": en vez de
+     aplastarlos, el rail se desliza. Es el único scroll horizontal deliberado
+     de la app y vive aquí, no en una tabla. */
+  .nav {
+    overflow-x: auto;
+  }
+
+  .tab {
+    flex: 0 0 auto;
+    padding: var(--space-3) var(--space-4);
+    font-size: 0.8125rem;
+    white-space: nowrap;
   }
 }

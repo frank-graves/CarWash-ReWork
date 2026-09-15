@@ -48,3 +48,11 @@
 }
 
 .error { color: var(--color-danger); font-size: 0.875rem; }
+
+@media (max-width: 639.98px) {
+  /* Sin `min-width: 0` el input no baja de su ancho intrínseco (~170px) y el
+     botón "Buscar" se sale de la fila en un móvil de 320px. */
+  .input { min-width: 0; }
+
+  .notFound { padding: var(--space-3); }
+}

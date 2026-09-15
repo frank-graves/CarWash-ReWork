@@ -28,7 +28,13 @@ service cloud.firestore {
       match /operators/{operatorId} {
         allow create: if request.auth != null
                       && request.auth.uid == operatorId;
-        allow read:   if isWorkspaceMember(workspaceId);
+        // El operador activo puede leer su propio doc incluso antes de existir
+        // como miembro del workspace. Sin esta excepción, el `getDoc` de
+        // `ensureBootstrap` cae con permission-denied la primera vez que se
+        // configura el dispositivo: `isWorkspaceMember` requiere que el propio
+        // doc del operador YA exista, que es justo lo que estamos creando.
+        allow read: if (request.auth != null && request.auth.uid == operatorId)
+                    || isWorkspaceMember(workspaceId);
         // Self-update acotado al backfill v2 → v3. El operador activo puede
         // añadirse `rolePublic: 'owner'` (v2 no distinguía roles y el primer
         // operador que se auto-registró siempre fue el dueño) y bumpear

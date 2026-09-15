@@ -46,7 +46,9 @@
   gap: var(--space-4);
 }
 
-@media (min-width: 768px) {
+/* Dos columnas desde 640px: en tablet vertical (768) ya caben las dos tarjetas
+   y en móvil apaisado (640-767) también, que es donde antes sobraba aire. */
+@media (min-width: 640px) {
   .grid { grid-template-columns: repeat(2, 1fr); }
 }
 
@@ -57,4 +59,30 @@
   font-size: 15px;
   border: 1px dashed var(--color-border);
   border-radius: var(--radius-md);
+}
+
+/* --- Móvil (hasta 639px) ---------------------------------------------------- */
+@media (max-width: 639.98px) {
+  .container {
+    padding: var(--space-3);
+    gap: var(--space-4);
+  }
+
+  .header {
+    gap: var(--space-2);
+  }
+
+  /* Sin `min-width: 0` un input no baja de su ancho intrínseco y empuja el
+     botón "Nuevo" fuera de la fila. */
+  .search {
+    min-width: 0;
+  }
+
+  .btnNew {
+    flex: none;
+  }
+
+  .empty {
+    padding: var(--space-8) var(--space-4);
+  }
 }

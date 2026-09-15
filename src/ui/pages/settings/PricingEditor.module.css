@@ -188,3 +188,16 @@
     letter-spacing: 0.04em;
   }
 }
+
+/* El corte se queda en 680 y no baja a 640: con la rejilla de escritorio (1 +
+   7 tiers) hacen falta ~660px, así que en la franja 640-679 el layout compacto
+   sigue siendo el correcto. Solo se aprieta el footer, que a 320 parte antes. */
+@media (max-width: 479.98px) {
+  .footer {
+    flex-wrap: wrap;
+  }
+
+  .save {
+    flex: 1 1 auto;
+  }
+}

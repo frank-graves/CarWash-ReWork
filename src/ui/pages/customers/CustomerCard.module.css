@@ -1,6 +1,8 @@
 .card {
   display: grid;
-  grid-template-columns: 1fr auto;
+  /* minmax(0, 1fr) y no 1fr: con `1fr` el nombre se niega a encogerse por
+     debajo de su contenido y empuja la placa fuera de la tarjeta en móvil. */
+  grid-template-columns: minmax(0, 1fr) auto;
   grid-template-rows: auto 1px auto;
   gap: var(--space-2) var(--space-4);
   padding: var(--space-4);
@@ -82,4 +84,22 @@
   background: var(--color-surface-hover);
   border-color: var(--color-border);
   color: var(--color-text);
+}
+
+/* --- Móvil (hasta 639px) ----------------------------------------------------
+   El botón de edición se revelaba solo con :hover, y en una tablet sin ratón
+   el hover no llega: se queda invisible. En móvil se muestra siempre. */
+@media (max-width: 639.98px) {
+  .card {
+    padding: var(--space-3);
+    gap: var(--space-2) var(--space-3);
+  }
+
+  .name {
+    font-size: 20px;
+  }
+
+  .editBtn {
+    opacity: 1;
+  }
 }

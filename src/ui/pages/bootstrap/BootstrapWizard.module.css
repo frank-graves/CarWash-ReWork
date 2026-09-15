@@ -263,11 +263,32 @@
   cursor: not-allowed;
 }
 
-@media (max-width: 26rem) {
+/* --- Móvil (hasta 639px) ---------------------------------------------------- */
+@media (max-width: 639.98px) {
   .wizard {
-    padding: var(--space-5);
+    padding: var(--space-4);
   }
 
+  .header {
+    margin-bottom: var(--space-8);
+  }
+
+  .title {
+    font-size: 1.5rem;
+  }
+
+  .step {
+    gap: var(--space-4);
+  }
+
+  .actions {
+    margin-top: var(--space-6);
+  }
+}
+
+/* A menos de 480px, la rejilla de 12 palabras a 3 columnas deja cada carril en
+   ~90px y el mono se parte: 2 columnas, y los testigos apilados. */
+@media (max-width: 479.98px) {
   .phraseGrid {
     grid-template-columns: repeat(2, 1fr);
     padding: var(--space-4);

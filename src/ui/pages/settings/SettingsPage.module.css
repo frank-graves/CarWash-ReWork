@@ -44,7 +44,13 @@
   font-size: 13px;
 }
 
-@media (max-width: 680px) {
+/* El corte de móvil va en 639.98 y no en 680 para casar con el rango móvil
+   (< 640) del resto de la app: en tablet la tarjeta conserva su aire. */
+@media (max-width: 639.98px) {
+  .page {
+    gap: var(--space-4);
+  }
+
   .card {
     padding: var(--space-4);
   }

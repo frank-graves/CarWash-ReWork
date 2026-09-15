@@ -237,3 +237,30 @@
     transform: none;
   }
 }
+
+/* --- Móvil (hasta 639px) ----------------------------------------------------
+   El pad ya es fluido (`width: 100%` con max-width 20rem), así que solo sobra
+   padding: 32px por lado en un móvil de 320 se comen media pantalla. */
+@media (max-width: 639.98px) {
+  .unlock {
+    padding: var(--space-4);
+  }
+
+  .title {
+    margin-bottom: var(--space-6);
+    font-size: 1.5rem;
+  }
+
+  .dots,
+  .pad {
+    margin-bottom: var(--space-6);
+  }
+
+  .pad {
+    gap: var(--space-3);
+  }
+
+  .modal {
+    padding: var(--space-5);
+  }
+}

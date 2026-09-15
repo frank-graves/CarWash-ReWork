@@ -199,7 +199,7 @@ export function WashRegistrationPage() {
 
           <section class={styles.section}>
             <h3 class={styles.sectionTitle}>2. Vehículo</h3>
-            <div class={styles.gridButtons}>
+            <div class={styles.vehicleGrid}>
               {(Object.keys(VEHICLE_LABELS) as VehicleKind[]).map((v) => (
                 <button
                   key={v}
@@ -265,20 +265,7 @@ export function WashRegistrationPage() {
               </section>
 
               <section class={styles.section}>
-                <h3 class={styles.sectionTitle}>6. Registrado por</h3>
-                <select
-                  class={styles.select}
-                  value={operatorId.value ?? ''}
-                  onChange={(e) => { operatorId.value = e.currentTarget.value; }}
-                >
-                  {operators.value.map((op) => (
-                    <option key={op.id} value={op.id}>{op.displayName}</option>
-                  ))}
-                </select>
-              </section>
-
-              <section class={styles.section}>
-                <h3 class={styles.sectionTitle}>7. Pago</h3>
+                <h3 class={styles.sectionTitle}>6. Pago</h3>
                 <div class={styles.gridButtons}>
                   <button
                     type="button"

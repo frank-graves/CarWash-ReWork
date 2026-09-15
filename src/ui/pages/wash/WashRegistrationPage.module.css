@@ -31,6 +31,30 @@
 
 .gridButtons { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: var(--space-3); }
 
+/* Solo para la rejilla de los 5 vehículos: con `auto-fit` y 5 items, cualquier
+   ancho que dé 4 columnas deja una última fila de uno. Aquí las columnas se
+   fuerzan por breakpoint. Servicios (tiers variables) y pago (2) siguen con
+   `.gridButtons`: son rejillas de otro tamaño y otro problema. */
+.vehicleGrid {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(2, 1fr);
+}
+
+/* El quinto (moto_lineal) a ancho completo en móvil: 2+2+1 sin hueco muerto. */
+.vehicleGrid > :last-child { grid-column: 1 / -1; }
+
+@media (min-width: 640px) {
+  /* Tablet: 3+2. */
+  .vehicleGrid { grid-template-columns: repeat(3, 1fr); }
+  .vehicleGrid > :last-child { grid-column: auto; }
+}
+
+@media (min-width: 1024px) {
+  /* Escritorio: los 5 en una sola fila. */
+  .vehicleGrid { grid-template-columns: repeat(5, 1fr); }
+}
+
 .btnGrid {
   padding: var(--space-4); background: var(--color-surface); border: 1px solid var(--color-border);
   border-radius: var(--radius-md); color: var(--color-text); font-weight: 500; cursor: pointer;
@@ -61,3 +85,23 @@
 .btnSubmit:disabled { opacity: 0.5; cursor: not-allowed; }
 
 @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgb(var(--color-amber-rgb) / 0.4); } 70% { box-shadow: 0 0 0 10px rgb(var(--color-amber-rgb) / 0); } 100% { box-shadow: 0 0 0 0 rgb(var(--color-amber-rgb) / 0); } }
+
+/* --- Móvil (hasta 639px) ----------------------------------------------------
+   639.98 y no 639: así el corte casa con el `min-width: 640px` de arriba sin
+   dejar un píxel huérfano entre los dos bloques. */
+@media (max-width: 639.98px) {
+  .container { padding: var(--space-3); gap: var(--space-4); }
+
+  /* El nombre cede el espacio, no el botón: se trunca con ellipsis en vez de
+     empujar "Cambiar" fuera de la tarjeta. */
+  .selectedCustomer { padding: var(--space-3); gap: var(--space-3); }
+  .selectedCustomer div { min-width: 0; }
+  .selectedCustomer strong { font-size: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .btnClear { flex: none; }
+}
+
+/* Por debajo de 480px el minmax de 120px ya no da dos columnas: a 90px siguen
+   entrando dos botones por fila incluso en un móvil de 320px. */
+@media (max-width: 479.98px) {
+  .gridButtons { grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); }
+}

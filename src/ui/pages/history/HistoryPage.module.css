@@ -342,3 +342,22 @@
     opacity: 1;
   }
 }
+
+/* --- Móvil (hasta 639px) ----------------------------------------------------
+   Las filas ya se apilan desde el bloque de 760px: por debajo de ~730px la
+   rejilla de 6 columnas no cabe y `.table` (overflow: hidden) la recortaría.
+   Aquí solo se aprieta el aire: los chips de fecha ya hacen `flex-wrap`. */
+@media (max-width: 639.98px) {
+  .container {
+    gap: var(--space-4);
+  }
+
+  .chip {
+    padding: 0 var(--space-2);
+    font-size: 12px;
+  }
+
+  .empty {
+    padding: var(--space-8) var(--space-4);
+  }
+}
