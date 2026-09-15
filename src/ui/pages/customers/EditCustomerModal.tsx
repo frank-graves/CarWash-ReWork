@@ -20,6 +20,7 @@ export function EditCustomerModal({ runtime, workspaceId, customer, onClose, onU
   const plate = useSignal(customer.plate);
   const phone = useSignal(customer.phone);
   const saving = useSignal(false);
+  const recomputing = useSignal(false);
   const error = useSignal('');
   const nameRef = useRef<HTMLInputElement>(null);
 
@@ -48,6 +49,21 @@ export function EditCustomerModal({ runtime, workspaceId, customer, onClose, onU
       }
     } finally {
       saving.value = false;
+    }
+  };
+
+  const handleRecompute = async () => {
+    recomputing.value = true;
+    error.value = '';
+    try {
+      const repo = new CustomerRepository(runtime, workspaceId);
+      await repo.recomputeLoyalty(customer.customerId);
+      const refreshed = await repo.findById(customer.customerId);
+      if (refreshed) onUpdated(refreshed);
+    } catch (e) {
+      error.value = translateError(e);
+    } finally {
+      recomputing.value = false;
     }
   };
 
@@ -90,6 +106,14 @@ export function EditCustomerModal({ runtime, workspaceId, customer, onClose, onU
         {error.value && <p class={styles.error}>{error.value}</p>}
 
         <div class={styles.actions}>
+          <button
+            type="button"
+            class={styles.btnRecompute}
+            onClick={handleRecompute}
+            disabled={recomputing.value || saving.value}
+          >
+            {recomputing.value ? 'Recalculando…' : 'Recalcular lealtad'}
+          </button>
           <button type="button" class={styles.btnCancel} onClick={onClose}>Cancelar</button>
           <button
             type="button"
@@ -100,6 +124,11 @@ export function EditCustomerModal({ runtime, workspaceId, customer, onClose, onU
             {saving.value ? 'Guardando...' : 'Guardar'}
           </button>
         </div>
+
+        <p class={styles.recomputeHint}>
+          Recalcula el contador desde el historial completo. Útil si cargaste
+          lavados antiguos en desorden.
+        </p>
       </div>
     </div>
   );

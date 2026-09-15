@@ -38,6 +38,13 @@ export interface RecordWashInput {
 	paidWith: PaymentMethod;
 	registeredBy: { id: string; name: string };
 	washer: { id: string; name: string };
+	/**
+	 * Fecha del lavado. Si es undefined o es hoy, se usa serverTimestamp()
+	 * (evita desajustes de reloj entre dispositivos). Si es una fecha pasada,
+	 * se persiste como Timestamp.fromDate() a mediodía UTC para consistencia
+	 * (misma hora del día sin importar la zona horaria del dispositivo).
+	 */
+	transactionDate?: Date;
 }
 
 // Tipo auxiliar para leer documentos legacy sin recurrir a `any`.
@@ -54,6 +61,18 @@ type StoredTransaction =
   Partial<Pick<WashTransactionDocument, "registeredByName" | "washerName">> &
   LegacyTransactionFields;
 
+// Mismo día según el calendario UTC. Se compara lo que devuelve el input (fecha
+// local del operador) contra el instante actual: a las 23:00 en un huso muy
+// positivo la cuenta puede bailar un día, y lo asumimos — el caso normal es un
+// negocio que carga el lavado de ayer, no uno que lo carga a medianoche.
+function isSameUtcDay(a: Date, b: Date): boolean {
+	return (
+		a.getUTCFullYear() === b.getUTCFullYear() &&
+		a.getUTCMonth() === b.getUTCMonth() &&
+		a.getUTCDate() === b.getUTCDate()
+	);
+}
+
 export class TransactionRepository {
 	private readonly transactionsPath: string;
 	private readonly customersPath: string;
@@ -68,6 +87,25 @@ export class TransactionRepository {
 
 	async record(input: RecordWashInput): Promise<string> {
 		const key = SessionKeyManager.getKey();
+
+		const now = new Date();
+		const selectedDate = input.transactionDate;
+		const isToday = !selectedDate || isSameUtcDay(selectedDate, now);
+
+		// Para lavados históricos: normalizar a mediodía UTC de ese día.
+		// Evita que un lavado "15 de marzo" se vea como 14 o 16 según la zona.
+		const normalizedDate = selectedDate
+			? new Date(
+					Date.UTC(
+						selectedDate.getUTCFullYear(),
+						selectedDate.getUTCMonth(),
+						selectedDate.getUTCDate(),
+						12,
+						0,
+						0,
+					),
+				)
+			: null;
 
 		const customerSnapshotData: CustomerSnapshot = {
 			displayName: input.customer.displayName,
@@ -96,8 +134,22 @@ export class TransactionRepository {
 
 			const updatePayload: Record<string, unknown> = {
 				accumulatedWashes: newWashes,
-				lastWashAt: serverTimestamp(),
 			};
+
+			if (isToday) {
+				updatePayload.lastWashAt = serverTimestamp();
+			} else {
+				// Comparar contra el lastWashAt actual del doc. Si el retroactivo es
+				// más antiguo que el último lavado conocido, no lo pisamos: el historial
+				// refleja el lavado más reciente, no el que acabamos de cargar.
+				const currentLastWashAt = customerData.lastWashAt as Timestamp | null;
+				const candidateMs = normalizedDate!.getTime();
+				const currentMs = currentLastWashAt ? currentLastWashAt.toDate().getTime() : 0;
+				if (candidateMs > currentMs) {
+					updatePayload.lastWashAt = Timestamp.fromDate(normalizedDate!);
+				}
+			}
+
 			if (input.wasFree) {
 				updatePayload.lastResetAt = serverTimestamp();
 			}
@@ -123,7 +175,9 @@ export class TransactionRepository {
 
 			tx.set(txRef, {
 				...txDoc,
-				createdAt: serverTimestamp(),
+				createdAt: isToday
+					? serverTimestamp()
+					: Timestamp.fromDate(normalizedDate!),
 			});
 
 			return txRef.id;

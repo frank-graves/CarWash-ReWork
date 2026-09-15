@@ -15,6 +15,29 @@ import { VEHICLE_LABELS, SERVICE_LABELS } from './vehicleLabels';
 import { isFormComplete, getAvailableTiers, isFreeWash, type WashFormState } from './formLogic';
 import styles from './WashRegistrationPage.module.css';
 
+/**
+ * Formatea un Date a 'YYYY-MM-DD' para `<input type="date">`. Usa los
+ * componentes LOCALES del Date (no UTC) porque el input trabaja en la zona
+ * del usuario: si hoy es 15 de setiembre en Lima, el input muestra 2026-09-15.
+ */
+function toDateInputValue(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/**
+ * Convierte 'YYYY-MM-DD' del input a Date en hora LOCAL. Un `new Date(str)`
+ * crudo interpretaría la fecha como UTC midnight, lo que puede desfasar el
+ * día al comparar contra `new Date()` local. Construimos el Date con los
+ * componentes explícitos para mantenerlo en el huso del operador.
+ */
+function parseDateInput(value: string): Date {
+  const [y, m, d] = value.split('-').map(Number);
+  return new Date(y ?? 1970, (m ?? 1) - 1, d ?? 1);
+}
+
 export function WashRegistrationPage() {
   const runtime = useSignal<FirebaseRuntime | null>(null);
   const workspaceId = useSignal<string | null>(null);
@@ -29,6 +52,10 @@ export function WashRegistrationPage() {
   const operatorId = useSignal<string | null>(null);
   const washerId = useSignal<string | null>(null);
   const payment = useSignal<PaymentMethod | null>(null);
+
+  // Fecha del lavado. Por defecto hoy. El operador solo la cambia cuando
+  // está cargando un lavado pasado (el negocio viene de un sistema en papel).
+  const transactionDate = useSignal<string>(toDateInputValue(new Date()));
 
   const submitting = useSignal(false);
   const error = useSignal('');
@@ -103,6 +130,7 @@ export function WashRegistrationPage() {
     const pickedPayment = payment.value;
     const pickedOperatorId = operatorId.value;
     const pickedWasherId = washerId.value;
+    const transactionDateValue = parseDateInput(transactionDate.value);
 
     if (
       !canSubmit ||
@@ -135,6 +163,7 @@ export function WashRegistrationPage() {
         paidWith: pickedPayment,
         registeredBy: { id: pickedOperatorId, name: operator?.displayName ?? 'Desconocido' },
         washer: { id: pickedWasherId, name: washer?.displayName ?? 'Desconocido' },
+        transactionDate: transactionDateValue,
       });
 
       receiptData.value = {
@@ -153,6 +182,7 @@ export function WashRegistrationPage() {
       cost.value = 0;
       payment.value = null;
       operatorId.value = activeOperatorId.value;
+      transactionDate.value = toDateInputValue(new Date());
     } catch (e) {
       error.value = translateError(e);
     } finally {
@@ -234,7 +264,7 @@ export function WashRegistrationPage() {
           {tier.value && (
             <>
               <section class={styles.section}>
-                <h3 class={styles.sectionTitle}>4. Costo</h3>
+                <h3 class={styles.sectionTitle}>4. Costo y fecha</h3>
                 <input
                   type="number"
                   class={styles.inputCost}
@@ -243,6 +273,19 @@ export function WashRegistrationPage() {
                   min="0"
                   step="0.5"
                 />
+                <label class={styles.dateLabel}>
+                  Fecha del lavado
+                  <input
+                    type="date"
+                    class={styles.inputDate}
+                    value={transactionDate.value}
+                    max={toDateInputValue(new Date())}
+                    onInput={(e) => { transactionDate.value = e.currentTarget.value; }}
+                  />
+                </label>
+                <p class={styles.dateHint}>
+                  Cambiala solo si estás cargando un lavado de otro día.
+                </p>
               </section>
 
               <section class={styles.section}>

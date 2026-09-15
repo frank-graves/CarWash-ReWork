@@ -53,6 +53,37 @@
 
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
+/* `margin-right: auto` contra el `justify-content: flex-end` de `.actions`:
+   Cancelar y Guardar se quedan a la derecha y Recalcular viaja a la izquierda. */
+.btnRecompute {
+  padding: var(--space-2) var(--space-4);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-out-expo),
+              border-color var(--duration-fast) var(--ease-out-expo);
+  margin-right: auto;
+}
+.btnRecompute:hover:not(:disabled) {
+  color: var(--color-text);
+  border-color: var(--color-border-strong);
+}
+.btnRecompute:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.recomputeHint {
+  margin: var(--space-2) 0 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  text-align: right;
+}
+
 @media (max-width: 639.98px) {
   .modal { padding: var(--space-4); }
 }

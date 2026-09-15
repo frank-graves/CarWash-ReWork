@@ -72,6 +72,41 @@
 }
 .inputCost:focus-visible, .select:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
 
+.dateLabel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin-top: var(--space-2);
+}
+
+.inputDate {
+  height: 40px;
+  padding: 0 var(--space-3);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 14px;
+}
+.inputDate:focus-visible {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgb(var(--color-accent-rgb) / 0.18);
+}
+
+.dateHint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
 .error { color: var(--color-danger); font-weight: 500; text-align: center; }
 
 .hint { color: var(--color-text-muted); font-size: 0.875rem; margin: 0; }

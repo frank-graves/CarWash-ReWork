@@ -15,6 +15,7 @@ import {
   onSnapshot,
   serverTimestamp,
   orderBy,
+  Timestamp,
   type QuerySnapshot,
 } from 'firebase/firestore';
 import type {
@@ -22,7 +23,7 @@ import type {
   CustomerPII,
   CustomerView,
 } from '@core/types';
-import { isEligibleForFreeWash } from '@core/loyalty';
+import { isEligibleForFreeWash, nextAccumulatedValue } from '@core/loyalty';
 import { PrivacyVault } from '@infra/crypto';
 import { hashPlate } from '@infra/hashing';
 import { SessionKeyManager } from '@infra/session-key';
@@ -94,6 +95,57 @@ export class CustomerRepository {
       doc(this.runtime.db, this.collectionPath, customerId),
       { payload, plateHash },
       { merge: true }
+    );
+  }
+
+  /**
+   * Recalcula el contador de lealtad desde el ledger del cliente. Necesario
+   * cuando se importan lavados retroactivos en desorden: el contador es una
+   * denormalización, y el orden de llegada de las escrituras no refleja el
+   * orden cronológico real de los lavados.
+   *
+   * Ordena las transacciones por createdAt ascendente, aplica la lógica
+   * `nextAccumulatedValue` una por una, y escribe el contador final.
+   * No-op si el cliente no tiene transacciones (deja el contador como está).
+   *
+   * El query se hace por customerId sin orderBy para no requerir índice
+   * compuesto. El orden se aplica en cliente sobre un array que para un car
+   * wash local rara vez supera el centenar de items.
+   */
+  async recomputeLoyalty(customerId: string): Promise<void> {
+    const transactionsPath = `workspaces/${this.workspaceId}/transactions`;
+
+    const q = query(
+      collection(this.runtime.db, transactionsPath),
+      where('customerId', '==', customerId),
+    );
+    const snap = await getDocs(q);
+    if (snap.empty) return;
+
+    interface LedgerEntry {
+      createdAt: Date;
+      wasFree: boolean;
+    }
+
+    const entries: LedgerEntry[] = snap.docs.map((d) => {
+      const data = d.data() as { createdAt: Timestamp; wasFree: boolean };
+      return {
+        createdAt: data.createdAt.toDate(),
+        wasFree: data.wasFree,
+      };
+    });
+
+    entries.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+
+    let counter = 0;
+    for (const entry of entries) {
+      counter = nextAccumulatedValue(counter, entry.wasFree);
+    }
+
+    await setDoc(
+      doc(this.runtime.db, this.collectionPath, customerId),
+      { accumulatedWashes: counter },
+      { merge: true },
     );
   }
 
