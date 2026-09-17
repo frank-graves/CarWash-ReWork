@@ -1,43 +1,106 @@
-# Astro Starter Kit: Minimal
+# Exclusivo Car Wash
 
-```sh
-npm create astro@latest -- --template minimal
+Registro de lavados y clientes para un lavadero local. Privacidad radical: todo el PII se cifra en el dispositivo antes de tocar Firestore, y la clave nunca sale del navegador.
+
+## Stack
+
+- Astro + Preact + Preact Signals
+- Firebase Firestore + Firebase Auth (anónima)
+- Web Crypto API: AES-GCM 256, PBKDF2 200k iteraciones
+- CSS Modules, tokens en `src/styles/tokens.css`
+- Vitest + fake-indexeddb
+- pnpm, Biome, TypeScript strict
+
+## Cómo correr en dev
+
+```bash
+# Terminal A — emuladores (dejar abierta)
+pnpm exec firebase emulators:start
+# Auth 9099, Firestore 8080, UI 4000
+
+# Terminal B — dev server (dejar abierta)
+pnpm dev
+# http://localhost:4321/
 ```
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+El primer arranque pide crear el negocio (workspace) o unirse a uno con un código de conexión. En dev no hace falta cuenta de Firebase: los emuladores no validan contra el proyecto real.
 
-## 🚀 Project Structure
+## Comandos frecuentes
 
-Inside of your Astro project, you'll see the following folders and files:
-
-```text
-/
-├── public/
-├── src/
-│   └── pages/
-│       └── index.astro
-└── package.json
+```bash
+pnpm exec tsc --noEmit
+pnpm exec vitest run
+pnpm build
+pnpm exec firebase deploy --only hosting
+pnpm exec firebase deploy --only firestore:rules
+pnpm exec firebase deploy --only firestore:rules,hosting
 ```
 
-Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
+Para borrar la bóveda local de un dispositivo (consola del navegador, F12):
 
-There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.
+```js
+indexedDB.deleteDatabase('carwash-vault').onsuccess = () => location.reload();
+```
 
-Any static assets, like images, can be placed in the `public/` directory.
+## Privacidad
 
-## 🧞 Commands
+La Master Key se genera aleatoria en cada dispositivo. No se deriva del PIN: el PIN es una cerradura local, no la llave del dato.
 
-All commands are run from the root of the project, from a terminal:
+Se envuelve dos veces, y las dos envolturas viven en IndexedDB: una con el PIN (`blobPin`) y otra con la frase de recuperación (`blobRec`). Cambiar el PIN re-envuelve esos 32 bytes y nada más; los datos en la nube no se tocan ni se vuelven a subir.
 
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
+Dentro del sobre viajan dos secretos: la Master Key, que cifra el PII, y la clave HMAC, que firma las huellas de matrícula. Como la búsqueda por placa se hace sobre el HMAC, sin la bóveda abierta ni siquiera se puede consultar si un cliente existe.
 
-## 👀 Want to learn more?
+Borrar IndexedDB sella los datos de la nube para siempre, para el operador y también para el equipo de desarrollo.
 
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+## Roles
+
+| Rol | Puede |
+|---|---|
+| owner | Todo. Reparte ownership, genera invites de admin o staff. |
+| admin | Genera invites de staff, no puede crear más admins. No toca precios, lavadores ni el PIN del dispositivo. |
+| staff | Registra lavados y consulta clientes. Sin Ajustes. |
+
+## Enrollment por código
+
+1. Owner/admin abre Ajustes → Equipo → Generar código de conexión.
+2. Elige rol (admin o staff) y el dispositivo genera un código `XXXX-XXXX-XXXX` (60 bits de entropía).
+3. El código se empaqueta como `ECW.{workspaceId}.{inviteId}.{code}` y se comparte por WhatsApp o se dicta por teléfono.
+4. El dispositivo nuevo pega el paquete, elige su PIN local, y queda enrolado con la misma Master Key.
+5. El dispositivo enrolado **no tiene frase de recuperación**. Si olvida el PIN, se re-enrola desde otro dispositivo.
+
+El paquete de conexión no se guarda en ningún sitio: quien lo tenga en el chat, lo tiene. Un invite usado se borra best-effort (si el que se enroló entró como staff, no tiene permiso para borrarlo y queda para que lo limpie un dueño).
+
+## Despliegue
+
+```bash
+pnpm exec tsc --noEmit
+pnpm exec vitest run
+pnpm build
+pnpm exec firebase deploy --only firestore:rules,hosting
+```
+
+**Código primero, rules después.** Las rules nuevas exigen `ownerUid` en el create del workspace: si se despliegan antes que el código, un bootstrap nuevo no puede crear su workspace. Al revés no rompe nada, porque el código tolera las rules viejas.
+
+## Limitaciones conocidas
+
+- **Bundle ~628 KB minificado (~180 KB gzip).** Warning de chunk size aceptado como deuda. Fase 7: code splitting del SDK de Firebase.
+- **Sin offline real.** El service worker cachea el shell, pero Firestore siempre va a red. Registrar un lavado sin conexión no funciona.
+- **`apple-touch-icon` apunta a un SVG.** iOS < 16.4 lo ignora. Android y iOS 16.4+ funcionan. Para iOS viejo: convertir `public/icon.svg` a PNG 180×180 con cualquier herramienta offline y actualizar el `<link>`.
+- **`listAll` de clientes descifra todo en memoria.** Con >500 clientes puede ser lento. Fase 7: paginación.
+- **Import masivo sin idempotencia.** Re-pegar el mismo lote duplica. Fase 7.
+- **`recomputeLoyalty` lee el ledger completo sin paginar.** Aceptable hasta ~200 transacciones por cliente.
+
+## Estructura
+
+```
+src/
+├── core/      dominio puro (tipos, pricing, loyalty, wordlist)
+├── infra/     persistencia, crypto, vault, repositorios
+└── ui/        páginas, componentes, estilos
+public/        assets estáticos (favicon, manifest, SW, icono)
+firestore.rules
+```
+
+## Licencia
+
+No declarada. Uso interno del negocio.

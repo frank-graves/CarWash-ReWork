@@ -5,21 +5,23 @@
 // la nube: si el operador cierra aquí, no hay workspace a medias. Y la frase no se
 // muestra hasta que se ha forjado, porque hasta entonces no existe.
 
-import { signal, type Signal } from '@preact/signals';
+import { signal } from '@preact/signals';
 import { useEffect } from 'preact/hooks';
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { bootstrapFirebase } from '@infra/firebase-bootstrap';
 import { OperatorRepository } from '@infra/operator-repository';
 import { Vault, normalizePhrase } from '@infra/vault';
 import { appPhase } from '@ui/appState';
+import { PinPad } from '@ui/components/PinPad';
 import styles from './BootstrapWizard.module.css';
 
-type Step = 1 | 2 | 3 | 4;
+type Step = 0 | 1 | 2 | 3 | 4;
 
+// Sigue viviendo aquí (no se movió al componente) porque `forgeVault` la usa para
+// validar la longitud del PIN: la regla de negocio no depende del teclado.
 const PIN_SLOTS = [0, 1, 2, 3, 4, 5] as const;
-const DIGITS = ['1', '2', '3', '4', '5', '6', '7', '8', '9'] as const;
 
-const step = signal<Step>(1);
+const step = signal<Step>(0);
 const businessName = signal('');
 const workspaceId = signal('');
 const ownerName = signal('');
@@ -39,54 +41,12 @@ const WITNESS_SPOTS = [
   { position: 9, index: 8, field: witnessB },
 ] as const;
 
-function PinPad({ value, label }: { value: Signal<string>; label: string }) {
-  const push = (digit: string) => {
-    if (value.value.length < PIN_SLOTS.length) value.value += digit;
-  };
-  const pop = () => {
-    value.value = value.value.slice(0, -1);
-  };
-
-  return (
-    <div class={styles.pinBlock}>
-      <span class={styles.label}>{label}</span>
-      <div class={styles.pinDots} aria-hidden="true">
-        {PIN_SLOTS.map((slot) => (
-          <span
-            key={slot}
-            class={slot < value.value.length ? `${styles.pinDot} ${styles.pinDotFilled}` : styles.pinDot}
-          />
-        ))}
-      </div>
-      <div class={styles.pinPad}>
-        {DIGITS.map((digit) => (
-          <button key={digit} type="button" class={styles.key} onClick={() => push(digit)}>
-            {digit}
-          </button>
-        ))}
-        <div class={styles.keySpacer} aria-hidden="true" />
-        <button type="button" class={styles.key} onClick={() => push('0')}>
-          0
-        </button>
-        <button
-          type="button"
-          class={`${styles.key} ${styles.keyGhost}`}
-          onClick={pop}
-          aria-label="Borrar el último dígito"
-        >
-          ←
-        </button>
-      </div>
-    </div>
-  );
-}
-
 export function BootstrapWizard() {
-  // Cada montaje arranca en el paso 1. El estado del módulo ya no lo limpia el reload,
-  // y un wizard remontado en el paso 4 mostraría la frase de una bóveda que puede
-  // estar borrada (wipeDevice) y reescribiría el workspace con datos viejos.
+  // Cada montaje arranca en el paso 0 (elegir camino). El estado del módulo ya no
+  // lo limpia el reload, y un wizard remontado en el paso 4 mostraría la frase de
+  // una bóveda que puede estar borrada (wipeDevice) y reescribiría el workspace.
   useEffect(() => {
-    step.value = 1;
+    step.value = 0;
     businessName.value = '';
     workspaceId.value = '';
     ownerName.value = '';
@@ -185,12 +145,19 @@ export function BootstrapWizard() {
     isWorking.value = true;
     try {
       const runtime = await bootstrapFirebase();
+      // El uid del dueño se escribe en el doc del workspace ANTES que su doc de
+      // operador: la rule de `operators` create lee `ownerUid` para autorizar el
+      // primer alta. Invertir el orden deja el wizard sin poder crear al owner.
+      const uid = runtime.auth.currentUser?.uid;
+      if (!uid) throw new Error('Sin usuario autenticado tras bootstrapFirebase');
       await setDoc(doc(runtime.db, 'workspaces', workspaceId.value), {
         name: businessName.value,
         createdAt: serverTimestamp(),
         schemaVersion: 1,
+        ownerUid: uid,
       });
-      await new OperatorRepository(runtime, workspaceId.value).ensureBootstrap(ownerName.value);
+      await new OperatorRepository(runtime, workspaceId.value)
+        .ensureBootstrap(ownerName.value, 'owner');
       // Sin recarga: la fase cambia y el shell se monta sobre la bóveda que acabamos
       // de forjar. Recargar aquí tiraba la Master Key recién creada y devolvía al
       // operador a la pantalla de desbloqueo.
@@ -208,10 +175,36 @@ export function BootstrapWizard() {
     <div class={styles.wizard}>
       <header class={styles.header}>
         <h1 class={styles.title}>Configuración inicial</h1>
-        <p class={styles.subtitle}>Paso {step.value} de 4</p>
+        {step.value > 0 && <p class={styles.subtitle}>Paso {step.value} de 4</p>}
       </header>
 
       <div class={styles.content}>
+        {step.value === 0 && (
+          <div class={styles.step}>
+            <button
+              type="button"
+              class={styles.modeBtn}
+              onClick={() => { step.value = 1; }}
+            >
+              <span class={styles.modeBtnTitle}>Crear un negocio nuevo</span>
+              <span class={styles.modeBtnHint}>
+                Vas a generar la frase de recuperación y ser el dueño.
+              </span>
+            </button>
+
+            <button
+              type="button"
+              class={styles.modeBtn}
+              onClick={() => { appPhase.value = 'enroll'; }}
+            >
+              <span class={styles.modeBtnTitle}>Unirme con un código</span>
+              <span class={styles.modeBtnHint}>
+                Tu tablet ya tiene un negocio; te sumás con un código de conexión.
+              </span>
+            </button>
+          </div>
+        )}
+
         {step.value === 1 && (
           <div class={styles.step}>
             <label class={styles.label} for="negocio">

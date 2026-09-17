@@ -94,11 +94,11 @@ export function AppShell() {
     theme.value = next;
   };
 
-  // Ajustes solo existe para el owner: el resto del equipo no tiene por qué tocar
-  // precios, lavadores ni el PIN del dispositivo.
-  const visibleTabs = TABS.filter((tab) =>
-    tab.id === 'settings' ? currentRole.value === 'owner' : true
-  );
+  // Ajustes solo existe para owner y admin: el resto del equipo no tiene por qué
+  // tocar precios, lavadores ni el PIN del dispositivo. Quién puede cambiar QUÉ
+  // dentro de Ajustes lo decide la propia página con su rol.
+  const isManager = currentRole.value === 'owner' || currentRole.value === 'admin';
+  const visibleTabs = TABS.filter((tab) => (tab.id === 'settings' ? isManager : true));
 
   return (
     <div class={styles.shell}>
@@ -158,7 +158,9 @@ export function AppShell() {
         {activeTab.value === 'wash' && <WashRegistrationPage />}
         {activeTab.value === 'customers' && <CustomersPage />}
         {activeTab.value === 'history' && <HistoryPage />}
-        {activeTab.value === 'settings' && currentRole.value === 'owner' && <SettingsPage />}
+        {activeTab.value === 'settings' && isManager && currentRole.value !== null && (
+          <SettingsPage currentRole={currentRole.value} />
+        )}
       </main>
     </div>
   );

@@ -22,7 +22,7 @@ export type ServiceTier =
 
 export type PaymentMethod = 'yape' | 'efectivo';
 
-export type OperatorRole = 'owner' | 'staff';
+export type OperatorRole = 'owner' | 'admin' | 'staff';
 
 /** Datos que se cifran antes de tocar Firestore. Nunca viajan en claro. */
 export interface CustomerPII {
@@ -69,10 +69,12 @@ export interface WashTransactionDocument {
 export interface OperatorDocument {
   operatorId: string;
   payload: string;              // AES-GCM(JSON({ displayName })) — solo nombre
-  rolePublic: OperatorRole;     // 'owner' | 'staff' en claro. Firestore Rules
-                                // lo lee sin descifrar.
+  rolePublic: OperatorRole;     // 'owner' | 'admin' | 'staff' en claro. Firestore
+                                // Rules lo lee sin descifrar.
   createdAt: Timestamp;
-  schemaVersion: 3;             // bump: el rol sale del payload a rolePublic
+  schemaVersion: 4;             // v4: inviteId opcional (alta por invite vs bootstrap)
+  inviteId?: string;            // presente SOLO si el alta vino de un invite.
+                                // Ausente = creado por el bootstrap del owner.
 }
 
 export interface OperatorView {
@@ -113,4 +115,22 @@ export interface WorkspaceSettings {
   priceMatrix: PriceMatrix;
   updatedAt: Timestamp | Date | FieldValue;
   updatedBy: string; // operatorId que hizo el último cambio
+}
+
+/**
+ * Documento de invitación de enrollment. Vive en
+ * `workspaces/{workspaceId}/invites/{inviteId}`. El inviteId actúa como
+ * capability token: quien lo conozca puede leer el blob y descifrarlo si
+ * además tiene el code. Un solo uso: se borra al enrolar.
+ */
+export interface InviteDocument {
+  inviteId: string;
+  blobInvite: string;      // AES-GCM(sobre del vault, keyInvite) en Base64
+  inviteSalt: string;      // Base64 del salt de PBKDF2 para keyInvite
+  ivInvite: string;        // Base64 del IV de AES-GCM
+  targetRole: OperatorRole; // Rol que tendrá el nuevo operador
+  createdBy: string;       // UID del operador que generó el invite
+  createdAt: Timestamp;
+  expiresAt: Timestamp;
+  schemaVersion: 1;
 }

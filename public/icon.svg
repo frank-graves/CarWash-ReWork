@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- El favicon (32 px) reescalado ×15.9 y recentrado: con esa escala el
+       monograma mide exactamente los 300 px del safe zone maskable, y el
+       translate compensa que en el original el texto no esté centrado en su
+       caja (va con baseline en y=22 sobre 32). Los números son feos a
+       propósito: son la cuenta, no una elección. -->
+  <rect width="512" height="512" rx="80" fill="#09090b"/>
+  <g transform="translate(1.6 -32.6) scale(15.9)">
+    <text
+      x="16"
+      y="22"
+      font-family="ui-monospace, 'Cascadia Mono', monospace"
+      font-size="11"
+      font-weight="700"
+      letter-spacing="-0.04em"
+      text-anchor="middle"
+      fill="#e11d48"
+    >ECW</text>
+  </g>
+</svg>

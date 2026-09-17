@@ -26,7 +26,17 @@ export class OperatorRepository {
     this.collectionPath = `workspaces/${this.workspaceId}/operators`;
   }
 
-  async ensureBootstrap(operatorName: string): Promise<string> {
+  /**
+   * Alta del operador activo. Dos caminos con el mismo write:
+   *   - bootstrap del negocio: `role: 'owner'`, sin `inviteId`;
+   *   - enrollment: el rol y el `inviteId` que traía el paquete de conexión.
+   * La ausencia de `inviteId` es lo que la rule lee como "vino del bootstrap".
+   */
+  async ensureBootstrap(
+    operatorName: string,
+    role: OperatorRole,
+    inviteId?: string,
+  ): Promise<string> {
     const uid = this.runtime.auth.currentUser?.uid;
     if (!uid) {
       throw new Error('No authenticated user to bootstrap as operator');
@@ -43,12 +53,29 @@ export class OperatorRepository {
     await setDoc(operatorRef, {
       operatorId: uid,
       payload: encryptedPayload,
-      rolePublic: 'owner',
+      rolePublic: role,
       createdAt: serverTimestamp(),
-      schemaVersion: 3,
+      schemaVersion: 4,
+      // El spread condicional omite la key cuando no hay invite: `undefined` en
+      // un setDoc no viaja, así que la rule puede distinguir "sin invite" con
+      // `keys().hasAny(['inviteId'])` en vez de mirar un valor centinela.
+      ...(inviteId ? { inviteId } : {}),
     });
 
     return uid;
+  }
+
+  /**
+   * Cambia el rol de otro operador. El write lleva SOLO `rolePublic`: la regla
+   * exige `affectedKeys().hasOnly(['rolePublic'])` en la rama de owner, así que
+   * un `updatedAt` de cortesía aquí sería un permission-denied.
+   */
+  async updateRole(operatorId: string, newRole: OperatorRole): Promise<void> {
+    await setDoc(
+      doc(this.runtime.db, this.collectionPath, operatorId),
+      { rolePublic: newRole },
+      { merge: true },
+    );
   }
 
   /**
@@ -71,13 +98,19 @@ export class OperatorRepository {
     if (!existing.exists()) return;
 
     const data = existing.data() as Partial<OperatorDocument>;
-    if (data.schemaVersion === 3 && data.rolePublic !== undefined) return;
+    // El guard va por `rolePublic` y NO por schemaVersion: al empezar a dejar los
+    // docs nuevos en v4, un chequeo `=== 3` dejaba de reconocer los ya migrados y
+    // este método reescribía `rolePublic: 'owner'` en CADA arranque del shell —
+    // ascendiendo a cualquier admin/staff y, con las rules nuevas, muriendo con
+    // permission-denied (la cabecera se quedaba en "Sin conexión"). Un doc que ya
+    // tiene rol no se toca nunca más.
+    if (data.rolePublic !== undefined) return;
 
     await setDoc(
       operatorRef,
       {
         rolePublic: 'owner',
-        schemaVersion: 3,
+        schemaVersion: 4,
       },
       { merge: true },
     );

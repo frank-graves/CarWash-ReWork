@@ -32,3 +32,17 @@ export class InsufficientRoleError extends Error {
     this.name = 'InsufficientRoleError';
   }
 }
+
+export class InviteNotFoundError extends Error {
+  constructor() {
+    super('El código de conexión no existe o ya fue utilizado.');
+    this.name = 'InviteNotFoundError';
+  }
+}
+
+export class InviteExpiredError extends Error {
+  constructor() {
+    super('El código de conexión ha expirado. Pedí uno nuevo.');
+    this.name = 'InviteExpiredError';
+  }
+}

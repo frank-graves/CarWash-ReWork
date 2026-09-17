@@ -132,6 +132,42 @@ async function write(entries: readonly (readonly [SlotName, unknown])[]): Promis
 // existen HMACs, ni acoplarse a un segundo algoritmo.
 let hmacKey: CryptoKey | null = null;
 
+// Los 64 bytes en claro del sobre (Master Key || clave HMAC) mientras la sesión
+// está abierta. `createInviteBlob` tiene que envolverlos para otro dispositivo y
+// las dos CryptoKey de la sesión son no-extraíbles a propósito: sin esta copia el
+// enrollment no tiene de dónde sacarlos. Es el precio de que un segundo
+// dispositivo pueda unirse sin volver a teclear el PIN del primero.
+//
+// Son los MISMOS 64 bytes que ya viajan descifrados durante cualquier unlock, y
+// tienen que serlo: si la clave HMAC no llegara al dispositivo nuevo, cada
+// tablet calcularía huellas de matrícula distintas y no encontraría ni un cliente
+// de la otra. `lock()` y `wipeDevice()` los tiran.
+//
+// El tipo lleva el `<ArrayBuffer>` explícito (y no el `ArrayBufferLike` por
+// defecto) porque estos bytes acaban en `crypto.subtle.encrypt`, que no acepta
+// views sobre SharedArrayBuffer.
+let vaultEnvelopeCache: Uint8Array<ArrayBuffer> | null = null;
+
+// Base64 para los campos del invite (Firestore guarda strings, no bytes). Mismo
+// patrón que PrivacyVault: btoa/atob sobre un string binario puro, porque con
+// bytes > 255 o Unicode directo revientan.
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 1) {
+    binary += String.fromCharCode(bytes[i] ?? 0);
+  }
+  return btoa(binary);
+}
+
+function base64ToBytes(base64: string): Uint8Array<ArrayBuffer> {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
 function freshBytes(length: number): Uint8Array<ArrayBuffer> {
   // getRandomValues es el CSPRNG del sistema. Aquí no hay Math.random disfrazado.
   return crypto.getRandomValues(new Uint8Array(length));
@@ -170,6 +206,28 @@ function importHmacKey(bytes: BufferSource): Promise<CryptoKey> {
 }
 
 /**
+ * Abre la sesión con el sobre recién descifrado y deja sus bytes crudos en
+ * `vaultEnvelopeCache` para que `createInviteBlob` pueda envolverlos.
+ *
+ * Centralizado a propósito: los cinco caminos que descifran el sobre (initDevice,
+ * unlockWithPin, changePin, resetWithRecovery, enrollFromInvite) tienen que hacer
+ * exactamente lo mismo. El día que uno se olvide de cachear, el enrollment se
+ * rompe solo por ese camino — y eso se descubre con el negocio bloqueado.
+ */
+async function adoptSessionKeys(envelope: Uint8Array | ArrayBuffer): Promise<void> {
+  const secrets = envelope instanceof Uint8Array ? envelope : new Uint8Array(envelope);
+  const masterKeyBytes = secrets.slice(0, MASTER_KEY_BYTES);
+  const hmacKeyBytes = secrets.slice(MASTER_KEY_BYTES, MASTER_KEY_BYTES + HMAC_KEY_BYTES);
+
+  vaultEnvelopeCache = new Uint8Array(MASTER_KEY_BYTES + HMAC_KEY_BYTES);
+  vaultEnvelopeCache.set(masterKeyBytes, 0);
+  vaultEnvelopeCache.set(hmacKeyBytes, MASTER_KEY_BYTES);
+
+  SessionKeyManager.adoptKey(await importMasterKey(masterKeyBytes));
+  hmacKey = await importHmacKey(hmacKeyBytes);
+}
+
+/**
  * Devuelve `null` solo si el tag GCM no valida: PIN o frase equivocados.
  *
  * La derivación queda FUERA del try a propósito. Si lo que falla es el motor
@@ -192,6 +250,21 @@ async function unwrapSecrets(
   } catch {
     return null;
   }
+}
+
+/**
+ * Deja el código de conexión en su forma canónica: mayúsculas, solo alfanumérico
+ * y los guiones donde tocan. Se dicta por teléfono y se pega desde WhatsApp, así
+ * que llega con espacios, en minúsculas o con los guiones corridos; contestar
+ * "Código incorrecto" a eso sería culpar al operador de nuestra rigidez.
+ *
+ * Si no queda en 12 símbolos devolvemos el original: no es trabajo de esta
+ * función adivinar qué quiso escribir, solo presentar bien lo que ya es válido.
+ */
+function normalizeInviteCode(raw: string): string {
+  const compact = raw.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (compact.length !== 12) return raw;
+  return `${compact.slice(0, 4)}-${compact.slice(4, 8)}-${compact.slice(8, 12)}`;
 }
 
 // --- Frase de recuperación --------------------------------------------------
@@ -270,6 +343,21 @@ export interface VaultInitResult {
   recoveryPhrase: string;
 }
 
+/**
+ * Paquete de conexión que viaja del dispositivo que invita al que se enrola.
+ * Objeto y no seis posicionales: `inviteSalt` ↔ `ivInvite` intercambiados
+ * fallan con "Código de conexión incorrecto" y el operador jura que tecleó bien
+ * el código. Un swap de nombres lo caza el compilador.
+ */
+export interface EnrollFromInviteInput {
+  workspaceId: string;
+  blobInvite: string;
+  inviteSalt: string;
+  ivInvite: string;
+  code: string;
+  newPin: string;
+}
+
 export class Vault {
   /**
    * Primera vez en este dispositivo. Genera la Master Key y la clave HMAC, las
@@ -337,8 +425,7 @@ export class Vault {
 
     // La sesión se abre cuando la bóveda ya está en disco. Al revés, un fallo de
     // escritura nos dejaría operando con claves que nadie podrá volver a abrir.
-    SessionKeyManager.adoptKey(await importMasterKey(masterKeyBytes));
-    hmacKey = await importHmacKey(hmacKeyBytes);
+    await adoptSessionKeys(combined);
 
     return { recoveryPhrase };
   }
@@ -413,15 +500,21 @@ export class Vault {
 
   static async unlockWithPin(pin: string): Promise<void> {
     const combined = await Vault.verifyPin(pin);
-    const secrets = new Uint8Array(combined);
-    const masterKeyBytes = secrets.slice(0, MASTER_KEY_BYTES);
-    const hmacKeyBytes = secrets.slice(MASTER_KEY_BYTES, MASTER_KEY_BYTES + HMAC_KEY_BYTES);
-    SessionKeyManager.adoptKey(await importMasterKey(masterKeyBytes));
-    hmacKey = await importHmacKey(hmacKeyBytes);
+
+    await adoptSessionKeys(combined);
   }
 
   static async isDeviceInitialized(): Promise<boolean> {
     return (await read<ArrayBuffer>(Slot.saltPin)) !== undefined;
+  }
+
+  /**
+   * ¿Este dispositivo guarda una frase de recuperación? El bootstrap la forja;
+   * el enrollment NO (la frase no viaja en un invite). La UI lo necesita para no
+   * ofrecer un modal de frase que no puede funcionar en una tablet enrolada.
+   */
+  static async hasRecoveryPhrase(): Promise<boolean> {
+    return (await read<ArrayBuffer>(Slot.blobPhrase)) !== undefined;
   }
 
   static async getLockoutRemainingMs(): Promise<number> {
@@ -459,11 +552,7 @@ export class Vault {
       [Slot.lockedUntil, 0],
     ]);
 
-    const secrets = new Uint8Array(combined);
-    const masterKeyBytes = secrets.slice(0, MASTER_KEY_BYTES);
-    const hmacKeyBytes = secrets.slice(MASTER_KEY_BYTES, MASTER_KEY_BYTES + HMAC_KEY_BYTES);
-    SessionKeyManager.adoptKey(await importMasterKey(masterKeyBytes));
-    hmacKey = await importHmacKey(hmacKeyBytes);
+    await adoptSessionKeys(combined);
   }
 
   /**
@@ -503,18 +592,142 @@ export class Vault {
       [Slot.lockedUntil, 0],
     ]);
 
-    const secrets = new Uint8Array(combined);
-    const masterKeyBytes = secrets.slice(0, MASTER_KEY_BYTES);
-    const hmacKeyBytes = secrets.slice(MASTER_KEY_BYTES, MASTER_KEY_BYTES + HMAC_KEY_BYTES);
-    SessionKeyManager.adoptKey(await importMasterKey(masterKeyBytes));
-    // Re-importar la HMAC key también: changePin puede llamarse tras un
-    // lock, y sin esto la sesión queda "unlocked" pero los hashPlate
-    // explotan con SessionLockedError.
-    hmacKey = await importHmacKey(hmacKeyBytes);
+    await adoptSessionKeys(combined);
+  }
+
+  /**
+   * Genera un código de conexión de 12 caracteres en formato XXXX-XXXX-XXXX.
+   * Entropía: log2(32^12) = 60 bits sobre un alfabeto de 32 símbolos. Con
+   * PBKDF2 de 200k iteraciones, un brute-force offline del code es inviable;
+   * el alfabeto recortado (sin I, O, 0 ni 1) es lo que permite dictarlo por
+   * teléfono sin equivocarse.
+   *
+   * 32 divide a 256, así que el módulo directo no introduce sesgo: cada
+   * símbolo tiene exactamente 8 bytes de origen.
+   */
+  static generateInviteCode(): string {
+    const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // 32 chars (sin I, O, 0, 1 para evitar confusión visual)
+    const CHARS_PER_GROUP = 4;
+    const GROUPS = 3;
+    const totalChars = CHARS_PER_GROUP * GROUPS;
+
+    const bytes = new Uint8Array(totalChars * 2);
+    crypto.getRandomValues(bytes);
+    const chars: string[] = [];
+    let byteIndex = 0;
+    while (chars.length < totalChars) {
+      if (byteIndex >= bytes.length) {
+        crypto.getRandomValues(bytes);
+        byteIndex = 0;
+      }
+      const b = bytes[byteIndex] ?? 0;
+      byteIndex += 1;
+      chars.push(ALPHABET[b % ALPHABET.length]!);
+    }
+
+    const groups: string[] = [];
+    for (let i = 0; i < GROUPS; i += 1) {
+      groups.push(chars.slice(i * CHARS_PER_GROUP, (i + 1) * CHARS_PER_GROUP).join(''));
+    }
+    return groups.join('-');
+  }
+
+  /**
+   * Cifra el sobre del vault (Master Key + clave HMAC, 64 bytes) con una clave
+   * derivada del código de conexión. El dispositivo que enrola recibe
+   * (blobInvite, inviteSalt, ivInvite, code) y con eso reconstruye la sesión.
+   *
+   * Requiere la sesión abierta: los bytes salen de `vaultEnvelopeCache`, que
+   * `adoptSessionKeys` llena en cada unlock. Las CryptoKey de la sesión son
+   * no-extraíbles, así que no hay otra fuente.
+   */
+  static async createInviteBlob(code: string): Promise<{
+    blobInvite: string;
+    inviteSalt: string;
+    ivInvite: string;
+  }> {
+    const envelope = vaultEnvelopeCache;
+    if (!envelope) {
+      throw new SessionLockedError();
+    }
+
+    const inviteSalt = freshBytes(SALT_BYTES);
+    const ivInvite = freshBytes(IV_BYTES);
+    const inviteKey = await deriveKey(code, inviteSalt);
+    const blobInvite = await crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv: ivInvite },
+      inviteKey,
+      envelope,
+    );
+
+    return {
+      blobInvite: bytesToBase64(new Uint8Array(blobInvite)),
+      inviteSalt: bytesToBase64(inviteSalt),
+      ivInvite: bytesToBase64(ivInvite),
+    };
+  }
+
+  /**
+   * Enrola este dispositivo usando un invite externo. Descifra el sobre con el
+   * code, genera un vault local nuevo (salt, IV, PIN), y adopta la Master Key
+   * en la sesión.
+   *
+   * No requiere un vault preexistente: crea todos los slots desde cero, los seis
+   * (`saltPin`, `ivPin`, `blobPin`, `workspaceId`, `failedAttempts`,
+   * `lockedUntil`). La frase de recuperación no viaja en un invite: este
+   * dispositivo se recupera re-enrolándose desde otro, no con una frase.
+   */
+  static async enrollFromInvite(input: EnrollFromInviteInput): Promise<void> {
+    const workspaceId = input.workspaceId.trim();
+    if (!workspaceId) throw new Error('Falta el identificador del negocio');
+    if (!PIN_PATTERN.test(input.newPin)) {
+      throw new Error('El PIN debe tener exactamente 6 dígitos');
+    }
+
+    const saltBytes = base64ToBytes(input.inviteSalt);
+    const ivBytes = base64ToBytes(input.ivInvite);
+    const blobBytes = base64ToBytes(input.blobInvite);
+
+    // El código se teclea a mano o se pega: normalizarlo antes de derivar es la
+    // diferencia entre "no funciona" y "funciona con espacios de más".
+    const combined = await unwrapSecrets(
+      normalizeInviteCode(input.code),
+      saltBytes.buffer,
+      ivBytes.buffer,
+      blobBytes.buffer,
+    );
+    if (!combined) {
+      throw new Error('Código de conexión incorrecto');
+    }
+
+    const saltPin = freshBytes(SALT_BYTES);
+    const ivPin = freshBytes(IV_BYTES);
+    const pinKey = await deriveKey(input.newPin, saltPin);
+    const blobPin = await crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv: ivPin },
+      pinKey,
+      combined,
+    );
+
+    // Los seis slots en UNA transacción: o el dispositivo queda enrolado entero,
+    // o no queda nada. Escribir el workspaceId aparte dejaba una bóveda abierta
+    // con `workspaceId = null` si el segundo write fallaba — el shell se queda
+    // en "Cargando…" y el operador no tiene forma de arreglarlo.
+    await write([
+      [Slot.saltPin, saltPin.buffer],
+      [Slot.ivPin, ivPin.buffer],
+      [Slot.blobPin, blobPin],
+      [Slot.workspaceId, workspaceId],
+      [Slot.failedAttempts, 0],
+      [Slot.lockedUntil, 0],
+    ]);
+
+    await adoptSessionKeys(combined);
   }
 
   static lock(): void {
     hmacKey = null;
+    vaultEnvelopeCache = null;
     SessionKeyManager.lock();
   }
 
@@ -547,6 +760,7 @@ export class Vault {
    */
   static async wipeDevice(): Promise<void> {
     hmacKey = null;
+    vaultEnvelopeCache = null;
     SessionKeyManager.lock();
     await closeVaultConnection();
     await new Promise<void>((resolve, reject) => {

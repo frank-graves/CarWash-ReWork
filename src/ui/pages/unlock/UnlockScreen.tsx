@@ -25,6 +25,11 @@ const recPhrase = signal('');
 const newPin = signal('');
 const confirmNewPin = signal('');
 const isWorking = signal(false);
+// null = todavía no lo sabemos. Con false, la pantalla no ofrece la frase: un
+// dispositivo enrolado no la tiene y ofrecerla sería mandar al operador a un
+// modal que no puede funcionar.
+const hasPhrase = signal<boolean | null>(null);
+const showEnrolledInfo = signal(false);
 
 export function UnlockScreen() {
   const attempt = async (candidate: string) => {
@@ -60,6 +65,13 @@ export function UnlockScreen() {
     newPin.value = '';
     confirmNewPin.value = '';
     isWorking.value = false;
+    showEnrolledInfo.value = false;
+    hasPhrase.value = null;
+    // Fallback conservador: si no podemos leer la bóveda, ofrecemos la frase.
+    // Un modal de más es menos malo que una tablet sin ninguna salida.
+    Vault.hasRecoveryPhrase()
+      .then((has) => { hasPhrase.value = has; })
+      .catch(() => { hasPhrase.value = true; });
   }, []);
 
   // Disparo automático al sexto dígito. `attempting` se lee aquí a propósito:
@@ -195,9 +207,44 @@ export function UnlockScreen() {
         </button>
       </div>
 
-      <button type="button" class={styles.link} onClick={openRecovery}>
-        He olvidado el PIN
-      </button>
+      {hasPhrase.value === true && (
+        <button type="button" class={styles.link} onClick={openRecovery}>
+          He olvidado el PIN
+        </button>
+      )}
+
+      {hasPhrase.value === false && (
+        <button
+          type="button"
+          class={styles.link}
+          onClick={() => { showEnrolledInfo.value = true; }}
+        >
+          He olvidado el PIN
+        </button>
+      )}
+
+      {showEnrolledInfo.value && (
+        <div class={styles.modalOverlay}>
+          <div class={styles.modal} role="dialog" aria-modal="true" aria-label="Sin frase de recuperación">
+            <h2 class={styles.modalTitle}>Sin frase de recuperación</h2>
+            <p class={styles.modalHint}>
+              Este dispositivo se unió al negocio con un código de conexión, así
+              que no guarda frase de recuperación. Para volver a entrar, pedile
+              a un dueño que te genere un código nuevo desde un dispositivo con
+              acceso.
+            </p>
+            <div class={styles.modalActions}>
+              <button
+                type="button"
+                class={styles.btn}
+                onClick={() => { showEnrolledInfo.value = false; }}
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showRecovery.value && (
         <div class={styles.modalOverlay}>

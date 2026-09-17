@@ -15,11 +15,17 @@ import { PricingEditor } from './PricingEditor';
 import { PinChangeForm } from './PinChangeForm';
 import { WasherManager } from './WasherManager';
 import { OperatorList } from './OperatorList';
+import { InvitePanel } from './InvitePanel';
 import { ImportModal } from './ImportModal';
 import type { FirebaseRuntime } from '@infra/firebase-bootstrap';
+import type { OperatorRole } from '@core/types';
 import styles from './SettingsPage.module.css';
 
-export function SettingsPage() {
+interface Props {
+  currentRole: OperatorRole;
+}
+
+export function SettingsPage({ currentRole }: Props) {
   const runtime = useSignal<FirebaseRuntime | null>(null);
   const workspaceId = useSignal<string | null>(null);
   const operatorId = useSignal<string | null>(null);
@@ -74,7 +80,13 @@ export function SettingsPage() {
       <section class={styles.card}>
         <h2 class={styles.sectionLabel}>Equipo</h2>
         <p class={styles.sectionHint}>Operadores con acceso a esta tablet.</p>
-        <OperatorList runtime={rt} workspaceId={ws} />
+        <OperatorList
+          runtime={rt}
+          workspaceId={ws}
+          currentOperatorId={op}
+          viewerRole={currentRole}
+        />
+        <InvitePanel runtime={rt} workspaceId={ws} currentRole={currentRole} />
       </section>
 
       <section class={styles.card}>

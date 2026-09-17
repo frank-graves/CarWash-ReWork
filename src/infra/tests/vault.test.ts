@@ -265,3 +265,132 @@ describe('Vault.changePin', () => {
     await expect(Vault.changePin(PIN, 'abc')).rejects.toThrow('El nuevo PIN');
   });
 });
+
+describe('Vault enrollment', () => {
+  it('generateInviteCode entrega 12 símbolos en tres grupos', () => {
+    const code = Vault.generateInviteCode();
+
+    expect(code).toMatch(/^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/);
+    expect(code).toHaveLength(14); // 12 símbolos + 2 guiones
+  });
+
+  it('dos códigos consecutivos no coinciden', () => {
+    expect(Vault.generateInviteCode()).not.toBe(Vault.generateInviteCode());
+  });
+
+  it('enrola un segundo dispositivo: descifra lo sellado por el primero y firma las mismas placas', async () => {
+    // --- Dispositivo A: ya enrolado, con datos sellados y clientes indexados.
+    await Vault.initDevice({ workspaceId: WORKSPACE, pin: PIN });
+    const sealed = await PrivacyVault.encryptPayload({ plate: 'ABC-123' }, Vault.getMasterKey());
+    const plateHashFromA = await hashPlate('ABC-123', Vault.getHmacKey());
+
+    const code = Vault.generateInviteCode();
+    const invite = await Vault.createInviteBlob(code);
+
+    // A se queda sin bóveda (IndexedDB incluido): el paquete tiene que bastar.
+    Vault.lock();
+    await Vault.wipeDevice();
+    expect(await Vault.isDeviceInitialized()).toBe(false);
+
+    // --- Dispositivo B: llega con el paquete y un PIN nuevo, sin bóveda previa.
+    await Vault.enrollFromInvite({
+      workspaceId: WORKSPACE,
+      blobInvite: invite.blobInvite,
+      inviteSalt: invite.inviteSalt,
+      ivInvite: invite.ivInvite,
+      code,
+      newPin: OTHER_PIN,
+    });
+
+    expect(await Vault.isDeviceInitialized()).toBe(true);
+    expect(Vault.isUnlocked()).toBe(true);
+    // El workspace viaja en el paquete y queda escrito en la misma transacción
+    // que el resto de slots. Sin esto, el shell del dispositivo nuevo se queda
+    // en "Cargando…" para siempre (bóveda abierta, workspace desconocido).
+    expect(await Vault.getWorkspaceId()).toBe(WORKSPACE);
+    expect(await PrivacyVault.decryptPayload(sealed, Vault.getMasterKey())).toEqual({
+      plate: 'ABC-123',
+    });
+
+    // La clave HMAC viaja dentro del mismo sobre: sin ella, B calcularía huellas
+    // de matrícula distintas a las de A y no encontraría ni un cliente.
+    expect(await hashPlate('ABC-123', Vault.getHmacKey())).toBe(plateHashFromA);
+  });
+
+  it('con el código equivocado no descifra nada', async () => {
+    await Vault.initDevice({ workspaceId: WORKSPACE, pin: PIN });
+    const invite = await Vault.createInviteBlob(Vault.generateInviteCode());
+
+    await expect(
+      Vault.enrollFromInvite({
+        workspaceId: WORKSPACE,
+        blobInvite: invite.blobInvite,
+        inviteSalt: invite.inviteSalt,
+        ivInvite: invite.ivInvite,
+        code: 'ZZZZ-ZZZZ-ZZZZ',
+        newPin: OTHER_PIN,
+      }),
+    ).rejects.toThrow('Código de conexión incorrecto');
+  });
+
+  it('sin workspaceId no enrola nada', async () => {
+    await Vault.initDevice({ workspaceId: WORKSPACE, pin: PIN });
+    const code = Vault.generateInviteCode();
+    const invite = await Vault.createInviteBlob(code);
+
+    await expect(
+      Vault.enrollFromInvite({
+        workspaceId: '   ',
+        blobInvite: invite.blobInvite,
+        inviteSalt: invite.inviteSalt,
+        ivInvite: invite.ivInvite,
+        code,
+        newPin: OTHER_PIN,
+      }),
+    ).rejects.toThrow('Falta el identificador del negocio');
+  });
+
+  it('normaliza el código antes de derivar (minúsculas, espacios y guiones corridos)', async () => {
+    await Vault.initDevice({ workspaceId: WORKSPACE, pin: PIN });
+    const code = Vault.generateInviteCode();
+    const invite = await Vault.createInviteBlob(code);
+    Vault.lock();
+    await Vault.wipeDevice();
+
+    await Vault.enrollFromInvite({
+      workspaceId: WORKSPACE,
+      blobInvite: invite.blobInvite,
+      inviteSalt: invite.inviteSalt,
+      ivInvite: invite.ivInvite,
+      // Tal cual sale de pegarlo desde WhatsApp después de dictarlo por teléfono.
+      code: `  ${code.toLowerCase().replace(/-/g, '')}  `,
+      newPin: OTHER_PIN,
+    });
+
+    expect(Vault.isUnlocked()).toBe(true);
+    expect(await Vault.getWorkspaceId()).toBe(WORKSPACE);
+  });
+
+  it('hasRecoveryPhrase distingue bootstrap de enrollment', async () => {
+    await Vault.initDevice({ workspaceId: WORKSPACE, pin: PIN });
+    expect(await Vault.hasRecoveryPhrase()).toBe(true);
+
+    const code = Vault.generateInviteCode();
+    const invite = await Vault.createInviteBlob(code);
+    Vault.lock();
+    await Vault.wipeDevice();
+    expect(await Vault.hasRecoveryPhrase()).toBe(false);
+
+    await Vault.enrollFromInvite({
+      workspaceId: WORKSPACE,
+      blobInvite: invite.blobInvite,
+      inviteSalt: invite.inviteSalt,
+      ivInvite: invite.ivInvite,
+      code,
+      newPin: OTHER_PIN,
+    });
+
+    // El enrolamiento no la escribe: la UI no puede ofrecer una frase que no existe.
+    expect(await Vault.hasRecoveryPhrase()).toBe(false);
+  });
+});

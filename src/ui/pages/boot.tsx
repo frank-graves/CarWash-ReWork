@@ -5,6 +5,7 @@ import { Vault } from '@infra/vault';
 import { appPhase } from '@ui/appState';
 import { AppShell } from '@ui/pages/AppShell';
 import { BootstrapWizard } from '@ui/pages/bootstrap/BootstrapWizard';
+import { EnrollmentWizard } from '@ui/pages/enroll/EnrollmentWizard';
 import { UnlockScreen } from '@ui/pages/unlock/UnlockScreen';
 import { translateError } from '@ui/i18n/es';
 import { applyTheme, readStoredTheme } from '@ui/theme';
@@ -23,8 +24,9 @@ function FaultState({ title, detail }: { title: string; detail: string }) {
   );
 }
 
-function renderPhase(root: HTMLElement, phase: 'wizard' | 'unlock' | 'app'): void {
+function renderPhase(root: HTMLElement, phase: 'wizard' | 'enroll' | 'unlock' | 'app'): void {
   if (phase === 'wizard') render(<BootstrapWizard />, root);
+  else if (phase === 'enroll') render(<EnrollmentWizard />, root);
   else if (phase === 'unlock') render(<UnlockScreen />, root);
   else render(<AppShell />, root);
 }

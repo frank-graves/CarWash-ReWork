@@ -17,6 +17,12 @@ import '@styles/tokens.css';
     <meta name="robots" content="noindex, nofollow" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" href="/favicon.ico" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icon.svg" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="ECW" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>Exclusivo Car Wash</title>
     <!-- El tema guardado se aplica antes de que cargue el bundle: sin esto, la
          tablet pinta un frame con el tema del sistema y salta al elegido después.
@@ -32,6 +38,18 @@ import '@styles/tokens.css';
           /* localStorage bloqueado (modo privado): se queda con el tema del sistema */
         }
       })();
+    </script>
+    <script>
+      // El SW solo se registra en producción. En dev, el cache-first
+      // interferiría con el HMR de Vite y verías CSS viejo tras guardar.
+      if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch(() => {
+            // Un registro fallido no rompe la app: la próxima visita reintenta.
+            // Sin console.warn: en la tablet del lavadero nadie lee la consola.
+          });
+        });
+      }
     </script>
   </head>
   <body>

@@ -53,6 +53,40 @@
   border: 1px solid var(--color-border-strong);
 }
 
+/* El carmesí (accent) es del owner; admin va en ámbar, como el aviso de premio. */
+.admin {
+  background: rgb(var(--color-amber-rgb) / 0.14);
+  color: var(--color-amber);
+  border: 1px solid rgb(var(--color-amber-rgb) / 0.4);
+}
+
+.roleSelect {
+  padding: 4px 8px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease-out-expo);
+}
+.roleSelect:hover { border-color: var(--color-border-strong); }
+.roleSelect:focus-visible {
+  outline: 2px solid rgb(var(--color-accent-rgb) / 0.45);
+  outline-offset: 2px;
+}
+.roleSelect:disabled { opacity: 0.5; cursor: wait; }
+
+.self {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-text-muted);
+  margin-right: var(--space-2);
+}
+
 .muted {
   margin: 0;
   padding: var(--space-4);

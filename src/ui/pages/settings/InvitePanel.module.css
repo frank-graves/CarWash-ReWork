@@ -1,0 +1,214 @@
+/* src/ui/pages/settings/InvitePanel.module.css
+   Vive dentro de la tarjeta "Equipo", separado de la lista de operadores por una
+   línea punteada: son dos acciones distintas sobre el mismo equipo. */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.divider {
+  border: none;
+  border-top: 1px dashed var(--color-border);
+  margin: var(--space-2) 0;
+}
+
+.generateBtn {
+  align-self: flex-start;
+  padding: var(--space-2) var(--space-4);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  cursor: pointer;
+  transition:
+    color var(--duration-fast) var(--ease-out-expo),
+    border-color var(--duration-fast) var(--ease-out-expo),
+    background var(--duration-fast) var(--ease-out-expo);
+}
+.generateBtn:hover {
+  color: var(--color-text);
+  border-color: var(--color-accent);
+  background: var(--color-surface-hover);
+}
+.generateBtn:focus-visible {
+  outline: 2px solid rgb(var(--color-accent-rgb) / 0.5);
+  outline-offset: 2px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--color-bg);
+  border-radius: var(--radius-md);
+}
+
+.fieldLabel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.roleSelect {
+  padding: 8px 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  cursor: pointer;
+}
+.roleSelect:focus-visible {
+  outline: 2px solid rgb(var(--color-accent-rgb) / 0.5);
+  outline-offset: 2px;
+}
+
+.formActions {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}
+
+.codeReveal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--color-bg);
+  border: 1px solid var(--color-amber);
+  border-radius: var(--radius-md);
+}
+
+.warn {
+  margin: 0;
+  color: var(--color-amber);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.codeText {
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  word-break: break-all;
+  color: var(--color-text);
+  user-select: all;
+}
+
+.codeActions {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.expiresIn {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.listLabel {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-bg);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+.itemMeta {
+  font-family: var(--font-mono);
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.deleteBtn {
+  padding: 4px 8px;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition:
+    color var(--duration-fast) var(--ease-out-expo),
+    border-color var(--duration-fast) var(--ease-out-expo);
+}
+.deleteBtn:hover {
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+}
+
+.btnPrimary, .btnSecondary {
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition:
+    transform var(--duration-fast) var(--ease-spring),
+    background var(--duration-fast) var(--ease-out-expo),
+    border-color var(--duration-fast) var(--ease-out-expo);
+}
+.btnPrimary {
+  background: var(--color-accent);
+  border: 1px solid var(--color-accent);
+  color: #ffffff;
+}
+.btnPrimary:hover:not(:disabled) { background: var(--color-accent-hover); }
+.btnSecondary {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+.btnSecondary:hover:not(:disabled) { background: var(--color-surface-hover); }
+.btnPrimary:active:not(:disabled),
+.btnSecondary:active:not(:disabled) { transform: scale(0.97); }
+.btnPrimary:disabled, .btnSecondary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.error {
+  margin: 0;
+  color: var(--color-danger);
+  font-size: 13px;
+}

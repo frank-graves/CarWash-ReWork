@@ -83,73 +83,43 @@
   text-align: center;
 }
 
-/* --- Teclado numérico ------------------------------------------------------ */
+/* --- Selección de camino --------------------------------------------------- */
 
-.pinBlock {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-.pinDots {
-  display: flex;
-  gap: var(--space-2);
-  justify-content: center;
-}
-
-.pinDot {
-  width: 0.75rem;
-  height: 0.75rem;
-  border-radius: var(--radius-full);
-  background: var(--color-border);
+.modeBtn {
+  display: block;
+  width: 100%;
+  padding: var(--space-5) var(--space-6);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  color: var(--color-text);
+  font-size: 1rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
   transition:
+    border-color var(--duration-fast) var(--ease-out-expo),
     background var(--duration-fast) var(--ease-out-expo),
     transform var(--duration-fast) var(--ease-spring);
 }
-
-.pinDotFilled {
-  background: var(--color-accent);
-  transform: scale(1.15);
-}
-
-.pinPad {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-3);
-  width: 100%;
-  max-width: 20rem;
-  margin: 0 auto;
-}
-
-.key {
-  aspect-ratio: 1;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  font-size: 1.5rem;
-  font-weight: 500;
-  transition:
-    transform var(--duration-fast) var(--ease-spring),
-    background var(--duration-fast) var(--ease-out-expo),
-    border-color var(--duration-fast) var(--ease-out-expo);
-}
-
-.key:hover {
+.modeBtn:hover {
+  border-color: var(--color-accent);
   background: var(--color-surface-hover);
-  border-color: var(--color-border-strong);
-  transform: scale(1.05);
 }
-
-.key:active {
-  transform: scale(0.95);
+.modeBtn:active { transform: scale(0.99); }
+.modeBtn:focus-visible {
+  outline: 2px solid rgb(var(--color-accent-rgb) / 0.5);
+  outline-offset: 2px;
 }
-
-.keyGhost {
+.modeBtnTitle { display: block; font-size: 1.05rem; }
+.modeBtnHint {
+  display: block;
+  margin-top: var(--space-1);
   color: var(--color-text-muted);
-}
-
-.keySpacer {
-  visibility: hidden;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
 }
 
 /* --- Consentimiento -------------------------------------------------------- */

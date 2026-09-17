@@ -1,19 +1,42 @@
 import { useSignal, useSignalEffect } from '@preact/signals';
 import { OperatorRepository } from '@infra/operator-repository';
 import { translateError } from '@ui/i18n/es';
-import type { OperatorView } from '@core/types';
+import type { OperatorRole, OperatorView } from '@core/types';
 import type { FirebaseRuntime } from '@infra/firebase-bootstrap';
 import styles from './OperatorList.module.css';
 
 interface Props {
   runtime: FirebaseRuntime;
   workspaceId: string;
+  currentOperatorId: string;
+  viewerRole: OperatorRole;
 }
 
-export function OperatorList({ runtime, workspaceId }: Props) {
+/** Badge por rol. El carmesí (accent) queda reservado para el owner; admin va en ámbar. */
+function roleClass(role: OperatorRole, classNames: Record<string, string>): string {
+  if (role === 'owner') return `${classNames.badge} ${classNames.owner}`;
+  if (role === 'admin') return `${classNames.badge} ${classNames.admin}`;
+  return `${classNames.badge} ${classNames.staff}`;
+}
+
+/** El `code` de Firebase llega como string suelto: sin `any`, comprobado a mano. */
+function isPermissionDenied(thrown: unknown): boolean {
+  return (
+    typeof thrown === 'object' &&
+    thrown !== null &&
+    (thrown as { code?: unknown }).code === 'permission-denied'
+  );
+}
+
+function isOperatorRole(raw: string): raw is OperatorRole {
+  return raw === 'owner' || raw === 'admin' || raw === 'staff';
+}
+
+export function OperatorList({ runtime, workspaceId, currentOperatorId, viewerRole }: Props) {
   const operators = useSignal<OperatorView[]>([]);
   const loading = useSignal(true);
   const error = useSignal('');
+  const busyOperatorId = useSignal<string | null>(null);
 
   useSignalEffect(() => {
     const repo = new OperatorRepository(runtime, workspaceId);
@@ -22,6 +45,25 @@ export function OperatorList({ runtime, workspaceId }: Props) {
       .catch((e) => { error.value = translateError(e); })
       .finally(() => { loading.value = false; });
   });
+
+  const changeRole = async (operatorId: string, rawRole: string): Promise<void> => {
+    if (!isOperatorRole(rawRole)) return;
+    busyOperatorId.value = operatorId;
+    error.value = '';
+    try {
+      const repo = new OperatorRepository(runtime, workspaceId);
+      await repo.updateRole(operatorId, rawRole);
+      // Refetch en vez de parchear el array en memoria: si otra tablet cambió
+      // algo mientras tanto, la lista lo recoge.
+      operators.value = await repo.listAll();
+    } catch (thrown) {
+      error.value = isPermissionDenied(thrown)
+        ? 'Solo el dueño puede cambiar roles.'
+        : translateError(thrown);
+    } finally {
+      busyOperatorId.value = null;
+    }
+  };
 
   return (
     <div class={styles.root}>
@@ -34,9 +76,24 @@ export function OperatorList({ runtime, workspaceId }: Props) {
           {operators.value.map((op) => (
             <li key={op.id} class={styles.row}>
               <span class={styles.name}>{op.displayName}</span>
-              <span class={op.role === 'owner' ? `${styles.badge} ${styles.owner}` : `${styles.badge} ${styles.staff}`}>
-                {op.role}
-              </span>
+              {op.id === currentOperatorId && <span class={styles.self}>tú</span>}
+              {viewerRole === 'owner' && op.id !== currentOperatorId ? (
+                <select
+                  class={styles.roleSelect}
+                  value={op.role}
+                  disabled={busyOperatorId.value === op.id}
+                  aria-label={`Rol de ${op.displayName}`}
+                  onChange={(event) => {
+                    void changeRole(op.id, event.currentTarget.value);
+                  }}
+                >
+                  <option value="owner">owner</option>
+                  <option value="admin">admin</option>
+                  <option value="staff">staff</option>
+                </select>
+              ) : (
+                <span class={roleClass(op.role, styles)}>{op.role}</span>
+              )}
             </li>
           ))}
         </ul>
@@ -44,9 +101,16 @@ export function OperatorList({ runtime, workspaceId }: Props) {
 
       {error.value && <p class={styles.error}>{error.value}</p>}
 
-      <p class={styles.note}>
-        Para añadir operadores, contacta con soporte. Disponible en la próxima versión.
-      </p>
+      {viewerRole === 'owner' ? (
+        <p class={styles.note}>
+          Podés cambiar el rol de cualquier operador excepto el tuyo. Los dispositivos
+          nuevos se enrolan con un código de conexión.
+        </p>
+      ) : (
+        <p class={styles.note}>
+          Solo el dueño puede cambiar roles. Podés generar códigos de conexión abajo.
+        </p>
+      )}
     </div>
   );
 }

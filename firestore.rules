@@ -16,36 +16,126 @@ service cloud.firestore {
     }
 
     match /workspaces/{workspaceId} {
-      allow create: if request.auth != null;
+      // El que crea el workspace se declara dueño en el mismo write. Sin esto,
+      // cualquiera podía crear un workspace a nombre de otro (inútil hoy, pero el
+      // invariante queda explícito: `ownerUid` es la única puerta del bootstrap).
+      allow create: if request.auth != null
+                    && request.resource.data.ownerUid == request.auth.uid;
       allow read:   if request.auth != null;
       allow update, delete: if false;
 
+      // Rol del operador autenticado, leído en claro desde su propio doc. Vive
+      // aquí dentro y no al lado de `isWorkspaceMember` porque necesita el
+      // `workspaceId` del match que lo envuelve: a nivel de `documents` esa
+      // variable no existe.
+      //
+      // Si el doc no existe, `get()` devuelve null y `.data` cae con
+      // permission-denied. Es lo correcto: un autenticado sin doc de operador
+      // no puede tocar nada.
+      function activeOperatorRole() {
+        return get(/databases/$(database)/documents/workspaces/$(workspaceId)/operators/$(request.auth.uid)).data.rolePublic;
+      }
+
       // El docId es el uid real de Firebase Auth: nadie puede crear un operador
-      // que no sea él mismo, y por tanto nadie puede ascender a otro. El rol vive
-      // dentro del payload cifrado, así que las reglas no pueden leerlo (no tienen
-      // la Master Key): la autorización por rol es de la capa de aplicación, y el
-      // alta de operadores por invitación llega en la Fase 6.
+      // que no sea él mismo. El rol vive en claro en `rolePublic` justamente para
+      // que estas reglas autoricen sin la Master Key; el alta por invitación entró
+      // en la Fase 6.3a, y el único camino al primer `owner` es `ownerUid`.
       match /operators/{operatorId} {
+        // Dos puertas, y ninguna es "cualquiera con el workspaceId":
+        //   (a) bootstrap: el doc del workspace declara que este uid es el dueño.
+        //   (b) enrollment: hay un invite vivo y el rol declarado es su targetRole.
+        // `hasOnly` impide colar campos extra en el alta.
         allow create: if request.auth != null
-                      && request.auth.uid == operatorId;
-        // El operador activo puede leer su propio doc incluso antes de existir
-        // como miembro del workspace. Sin esta excepción, el `getDoc` de
-        // `ensureBootstrap` cae con permission-denied la primera vez que se
-        // configura el dispositivo: `isWorkspaceMember` requiere que el propio
-        // doc del operador YA exista, que es justo lo que estamos creando.
+                      && request.auth.uid == operatorId
+                      && request.resource.data.keys().hasOnly([
+                           'operatorId', 'payload', 'rolePublic', 'createdAt',
+                           'schemaVersion', 'inviteId'
+                         ])
+                      && (
+                           (
+                             get(/databases/$(database)/documents/workspaces/$(workspaceId)).data.ownerUid == request.auth.uid
+                             && request.resource.data.rolePublic == 'owner'
+                           )
+                           ||
+                           (
+                             request.resource.data.keys().hasAny(['inviteId'])
+                             && exists(/databases/$(database)/documents/workspaces/$(workspaceId)/invites/$(request.resource.data.inviteId))
+                             && get(/databases/$(database)/documents/workspaces/$(workspaceId)/invites/$(request.resource.data.inviteId)).data.targetRole == request.resource.data.rolePublic
+                           )
+                         );
+        // El operador activo puede leer su propio doc (backfill v2→v4).
+        // Owner/admin pueden leer cualquier doc de la colección.
         allow read: if (request.auth != null && request.auth.uid == operatorId)
                     || isWorkspaceMember(workspaceId);
-        // Self-update acotado al backfill v2 → v3. El operador activo puede
-        // añadirse `rolePublic: 'owner'` (v2 no distinguía roles y el primer
-        // operador que se auto-registró siempre fue el dueño) y bumpear
-        // schemaVersion. Cualquier otro cambio en el mismo update lo rechaza.
-        // `delete` sigue prohibido: nadie borra operadores, ni siquiera el owner.
-        allow update: if request.auth != null
-                      && request.auth.uid == operatorId
-                      && request.resource.data.diff(resource.data).affectedKeys()
-                           .hasOnly(['rolePublic', 'schemaVersion'])
-                      && request.resource.data.rolePublic == 'owner';
+        // Dos casos permitidos:
+        //   1. Self-update acotado al backfill: SOLO sobre un doc que todavía no
+        //      tiene rol. Sin esa condición, cualquier operador se ascendía a sí
+        //      mismo a owner en un write.
+        //      OJO: `resource.data.rolePublic == null` NO alcanza para un campo
+        //      ausente (leer una key que no existe es error de evaluación, no
+        //      null). Por eso el hasAny() primero: el `||` cortocircuita y el
+        //      doc v2 (sin la key) entra sin tocar la comparación.
+        //   2. Owner cambia rolePublic de otro operador.
+        allow update: if
+          (
+            request.auth != null
+            && request.auth.uid == operatorId
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['rolePublic', 'schemaVersion'])
+            && request.resource.data.rolePublic == 'owner'
+            && (
+                 !resource.data.keys().hasAny(['rolePublic'])
+                 || resource.data.rolePublic == null
+               )
+          )
+          ||
+          (
+            isWorkspaceMember(workspaceId)
+            && activeOperatorRole() == 'owner'
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['rolePublic'])
+          );
         allow delete: if false;
+      }
+
+      match /invites/{inviteId} {
+        // `get`: cualquier autenticado que conozca el inviteId puede leer el doc.
+        // Tiene que ser así: el dispositivo que se enrola todavía NO es miembro
+        // (su doc de operador no existe), y el inviteId es un UUID de 122 bits
+        // que solo viaja en el paquete de conexión.
+        allow get:  if request.auth != null;
+
+        // `list`: solo owner/admin. `read` cubría get Y list, así que cualquier
+        // anónimo con un workspaceId podía enumerar los blobs pendientes y
+        // atacarlos offline. Nadie más necesita listar invites.
+        allow list: if isWorkspaceMember(workspaceId)
+                    && (activeOperatorRole() == 'owner'
+                        || activeOperatorRole() == 'admin');
+
+        // Crear: owner y admin, pero no con el mismo techo. El owner reparte
+        // ownership (puede emitir 'admin' o 'staff'); el admin solo suma gente al
+        // mostrador. Sin ese segundo escalón, un admin se clonaba a sí mismo y la
+        // jerarquía quedaba en un dibujo: escalada lateral, pero escalada.
+        allow create: if isWorkspaceMember(workspaceId)
+                      && (
+                           (
+                             activeOperatorRole() == 'owner'
+                             && request.resource.data.targetRole in ['admin', 'staff']
+                           )
+                           ||
+                           (
+                             activeOperatorRole() == 'admin'
+                             && request.resource.data.targetRole == 'staff'
+                           )
+                         );
+
+        // Borrar: owner o admin, para limpiar invites usados o expirados.
+        allow delete: if isWorkspaceMember(workspaceId)
+                      && (activeOperatorRole() == 'owner' || activeOperatorRole() == 'admin');
+
+        // No se actualizan invites: son inmutables. Un cambio de rol target
+        // implica generar uno nuevo.
+        allow update: if false;
       }
 
       match /washers/{washerId} {

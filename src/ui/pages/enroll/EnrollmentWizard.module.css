@@ -1,0 +1,215 @@
+/* src/ui/pages/enroll/EnrollmentWizard.module.css
+   Hermanas de las clases del wizard de bootstrap a propósito: el operador pasa
+   por las dos pantallas en el mismo arranque y no debería notar el salto. */
+
+.wizard {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: var(--space-8);
+}
+
+.header {
+  margin-bottom: var(--space-12);
+  text-align: center;
+}
+
+.title {
+  margin-bottom: var(--space-2);
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.subtitle {
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: 100%;
+  max-width: 28rem;
+  margin: 0 auto;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.label {
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.input {
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  transition:
+    border-color var(--duration-fast) var(--ease-out-expo),
+    box-shadow var(--duration-base) var(--ease-out-expo);
+}
+
+.input:hover {
+  border-color: var(--color-border-strong);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
+}
+
+.textarea {
+  min-height: 100px;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  resize: vertical;
+  word-break: break-all;
+}
+
+.textarea:hover {
+  border-color: var(--color-border-strong);
+}
+
+.textarea:focus-visible {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
+}
+
+.hint {
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.warnBanner {
+  padding: var(--space-4);
+  background: var(--color-amber);
+  border-radius: var(--radius-md);
+  color: #0a0a0a;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.error {
+  margin-top: var(--space-6);
+  color: var(--color-danger);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.actions {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-8);
+}
+
+.actionsRow {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.btn {
+  padding: var(--space-3) var(--space-8);
+  background: var(--color-accent);
+  border-radius: var(--radius-md);
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 600;
+  transition:
+    transform var(--duration-fast) var(--ease-out-expo),
+    background var(--duration-fast) var(--ease-out-expo),
+    box-shadow var(--duration-base) var(--ease-out-expo);
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.btn:active:not(:disabled) {
+  box-shadow: var(--shadow-sm);
+  transform: translateY(0);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btnSecondary {
+  padding: var(--space-3) var(--space-8);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  font-size: 1rem;
+  font-weight: 600;
+  transition:
+    border-color var(--duration-fast) var(--ease-out-expo),
+    background var(--duration-fast) var(--ease-out-expo);
+}
+
+.btnSecondary:hover:not(:disabled) {
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-hover);
+}
+
+.btnSecondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btnSecondary:focus-visible {
+  outline: 2px solid rgb(var(--color-accent-rgb) / 0.5);
+  outline-offset: 2px;
+}
+
+/* --- Móvil (hasta 639px) ---------------------------------------------------- */
+@media (max-width: 639.98px) {
+  .wizard {
+    padding: var(--space-4);
+  }
+
+  .header {
+    margin-bottom: var(--space-8);
+  }
+
+  .title {
+    font-size: 1.5rem;
+  }
+
+  .step {
+    gap: var(--space-4);
+  }
+
+  .actions {
+    margin-top: var(--space-6);
+  }
+}
