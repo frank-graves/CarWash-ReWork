@@ -67,6 +67,12 @@ vi.mock('firebase/firestore', async () => {
       const data = custStore.get(ref.path) ?? txStore.get(ref.path);
       return { exists: () => data !== undefined, data: () => data };
     },
+    // Anular un lavado es un borrado real, así que el mock tiene que sacar la
+    // key del store: si solo la ignorara, el test de `annul` pasaría sin que
+    // el repositorio hubiera borrado nada.
+    deleteDoc: async (ref: any) => {
+      txStore.delete(ref.path);
+    },
     getDocs: async (q: any) => {
       const results = Array.from(txStore.entries())
         .filter(([key]) => key.startsWith(q.path))
@@ -181,5 +187,22 @@ describe('TransactionRepository', () => {
     // El esquema 2 separa quién registra de quién lava, y el ledger conserva ambos.
     expect(recent[0]?.registeredByName).toBe('Carlos');
     expect(recent[0]?.washerName).toBe('Miguel');
+  });
+
+  it('annul borra la transacción del ledger', async () => {
+    const txId = await repo.record(baseInput);
+    expect(
+      __mockStores.transactions.has(
+        `workspaces/${workspaceId}/transactions/${txId}`,
+      ),
+    ).toBe(true);
+
+    await repo.annul(txId);
+
+    expect(
+      __mockStores.transactions.has(
+        `workspaces/${workspaceId}/transactions/${txId}`,
+      ),
+    ).toBe(false);
   });
 });

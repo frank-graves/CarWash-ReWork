@@ -1,9 +1,11 @@
 // src/infra/transaction-repository.ts
 // El libro mayor de lavados (washLedger). Inmutable por diseño:
-// una transacción registrada nunca se modifica, solo se añaden nuevas.
+// una transacción registrada nunca se modifica, solo se añaden nuevas — o se
+// anulan, que es un borrado, no una reescritura.
 
 import {
 	collection,
+	deleteDoc,
 	doc,
 	getDocs,
 	query,
@@ -186,6 +188,20 @@ export class TransactionRepository {
 		return result;
 	}
 
+	/**
+	 * Anula un lavado mal cargado. Borra el doc del ledger y devuelve el
+	 * control al llamador para que recalcule la lealtad del cliente.
+	 * La transacción no se reescribe: no existe, no se ve, no cuenta.
+	 *
+	 * No llamamos a recomputeLoyalty aquí a propósito: este repo no debe
+	 * conocer CustomerRepository. El caller orquesta los dos.
+	 */
+	async annul(transactionId: string): Promise<void> {
+		await deleteDoc(
+			doc(this.runtime.db, this.transactionsPath, transactionId),
+		);
+	}
+
 	async listRecent(limitCount = 50): Promise<WashTransactionView[]> {
 		const q = query(
 			collection(this.runtime.db, this.transactionsPath),
@@ -253,6 +269,7 @@ export class TransactionRepository {
 
 		return {
 			transactionId: docData.transactionId,
+			customerId: docData.customerId,
 			customerName: snapshot.displayName,
 			customerPlate: snapshot.plate,
 			vehicleKind: docData.vehicleKind,

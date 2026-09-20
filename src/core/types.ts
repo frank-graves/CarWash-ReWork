@@ -93,6 +93,9 @@ export interface CustomerView extends CustomerPII {
 
 export interface WashTransactionView {
   transactionId: string;
+  // El view no lo necesitaba para pintar una fila, pero anular un lavado sí:
+  // hay que saber a qué cliente recalcularle la lealtad después del borrado.
+  customerId: string;
   customerName: string;
   customerPlate: string;
   vehicleKind: VehicleKind;

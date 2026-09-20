@@ -1,8 +1,10 @@
 import { useComputed, useSignal, useSignalEffect } from '@preact/signals';
 import { bootstrapFirebase, type FirebaseRuntime } from '@infra/firebase-bootstrap';
+import { CustomerRepository } from '@infra/customer-repository';
 import { TransactionRepository } from '@infra/transaction-repository';
 import { Vault } from '@infra/vault';
-import type { PaymentMethod, WashTransactionView } from '@core/types';
+import { translateError } from '@ui/i18n/es';
+import type { OperatorRole, PaymentMethod, WashTransactionView } from '@core/types';
 import { SERVICE_LABELS, VEHICLE_LABELS } from '../wash/vehicleLabels';
 import { ExportButton } from './ExportButton';
 import styles from './HistoryPage.module.css';
@@ -56,12 +58,23 @@ function formatShortDate(date: Date): string {
   return `${day}/${month}`;
 }
 
-export function HistoryPage() {
+interface Props {
+  /**
+   * El historial se pinta igual para todos, pero anular un lavado es una
+   * decisión de gestión: el carril del botón solo existe para owner/admin.
+   * Sin prop, vista de mostrador.
+   */
+  viewerRole?: OperatorRole;
+}
+
+export function HistoryPage({ viewerRole = 'staff' }: Props) {
   const runtime = useSignal<FirebaseRuntime | null>(null);
   const workspaceId = useSignal<string | null>(null);
   const transactions = useSignal<WashTransactionView[]>([]);
   const loading = useSignal(true);
   const trouble = useSignal('');
+
+  const canAnnul = viewerRole === 'owner' || viewerRole === 'admin';
 
   const dateRange = useSignal<DateRange>('all');
   const customerFilter = useSignal('');
@@ -154,6 +167,30 @@ export function HistoryPage() {
   const writePlateNeedle = (raw: string) => {
     customerFilter.value = raw;
     touchFilters();
+  };
+
+  // Borrar el lavado y recalcular la lealtad son dos escrituras y un solo gesto:
+  // el repositorio del ledger no conoce al de clientes, así que la orquesta la UI.
+  // La lista se refresca sola: `subscribeRecent` ya está escuchando.
+  const handleAnnul = async (tx: WashTransactionView) => {
+    const ok = window.confirm(
+      `¿Anular el lavado de ${tx.customerName} (${tx.customerPlate})?\n\n` +
+        `Se borra el registro y se recalcula la lealtad del cliente.`,
+    );
+    if (!ok) return;
+
+    const rt = runtime.value;
+    const ws = workspaceId.value;
+    if (!rt || !ws) return;
+
+    try {
+      const ledger = new TransactionRepository(rt, ws);
+      const customers = new CustomerRepository(rt, ws);
+      await ledger.annul(tx.transactionId);
+      await customers.recomputeLoyalty(tx.customerId);
+    } catch (thrown) {
+      trouble.value = translateError(thrown);
+    }
   };
 
   return (
@@ -250,6 +287,18 @@ export function HistoryPage() {
                   S/ {tx.cost.toFixed(2)}
                   {tx.wasFree && <span class={styles.freeMark}>✱</span>}
                 </span>
+
+                {canAnnul && (
+                  <button
+                    type="button"
+                    class={styles.btnAnnul}
+                    onClick={() => void handleAnnul(tx)}
+                    aria-label={`Anular lavado de ${tx.customerName}`}
+                    title="Anular lavado"
+                  >
+                    ×
+                  </button>
+                )}
               </div>
             ))}
           </div>

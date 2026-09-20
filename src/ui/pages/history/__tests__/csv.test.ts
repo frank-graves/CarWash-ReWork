@@ -4,6 +4,7 @@ import type { WashTransactionView } from '@core/types';
 
 const mockTx: WashTransactionView = {
   transactionId: '1',
+  customerId: 'cust-1',
   customerName: 'Juan "El Rápido" Pérez',
   customerPlate: 'ABC-123',
   vehicleKind: 'auto',

@@ -1,0 +1,25 @@
+---
+// src/pages/panel.astro
+// La ruta de gestión. Mismo bundle y misma bóveda que `/`, distinto shell: el
+// panel es una pantalla de escritorio para el dueño, no el mostrador.
+import BaseLayout from '@ui/layouts/BaseLayout.astro';
+---
+
+<BaseLayout>
+  <div id="app-root"></div>
+
+  <noscript>
+    <div class="no-script">
+      Esta aplicación cifra y descifra en tu dispositivo, con la Web Crypto API del navegador.
+      Sin JavaScript no hay criptografía, así que no hay nada que mostrar: no es un capricho de
+      desarrollo, es que aquí no hay servidor que pueda hacerlo por ti.
+    </div>
+  </noscript>
+
+  <script>
+    import { mountApp } from '@ui/pages/boot';
+
+    const root = document.getElementById('app-root');
+    if (root) void mountApp(root, 'panel');
+  </script>
+</BaseLayout>

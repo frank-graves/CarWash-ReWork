@@ -52,7 +52,16 @@ vi.mock('firebase/firestore', async () => {
     }),
     limit: () => ({ limit: true }),
     orderBy: () => ({ orderBy: true }),
-    setDoc: async (ref: any, data: any) => { store.set(ref.path, data); },
+    // El setDoc real con `{ merge: true }` funde sobre el doc existente. Sin
+    // esto, cualquier escritura parcial borraba el payload cifrado y un test
+    // podía pasar por el motivo equivocado (o reventar al descifrar).
+    setDoc: async (ref: any, data: any, options?: { merge?: boolean }) => {
+      if (options?.merge) {
+        store.set(ref.path, { ...(store.get(ref.path) ?? {}), ...data });
+      } else {
+        store.set(ref.path, data);
+      }
+    },
     deleteDoc: async (ref: any) => { store.delete(ref.path); },
     onSnapshot: () => () => {},
     serverTimestamp: () => Date.now(),
@@ -109,5 +118,37 @@ describe('CustomerRepository', () => {
     await repo.delete(customerId);
     const found = await repo.findById(customerId);
     expect(found).toBeNull();
+  });
+
+  /** Pisa el contador del doc como lo haría un lavado, saltándose el ledger. */
+  const forceAccumulatedWashes = (customerId: string, washes: number) => {
+    const key = `workspaces/${workspaceId}/customers/${customerId}`;
+    store.set(key, { ...(store.get(key) ?? {}), accumulatedWashes: washes });
+  };
+
+  it('recomputeLoyalty con ledger vacío deja el contador en 0', async () => {
+    const customerId = await repo.create(samplePII);
+    // Contador desincronizado: el lavado ya no está en el ledger (se anuló o se
+    // importó mal), pero el doc del cliente sigue diciendo 1.
+    forceAccumulatedWashes(customerId, 1);
+
+    await repo.recomputeLoyalty(customerId);
+
+    const found = await repo.findById(customerId);
+    expect(found?.accumulatedWashes).toBe(0);
+    // Y el write no se llevó por delante el resto del doc: el payload sigue ahí
+    // y se descifra. Un `setDoc` sin merge habría dejado un cliente sin nombre.
+    expect(found?.displayName).toBe(samplePII.displayName);
+  });
+
+  it('recomputeLoyalty no resucita un cliente borrado', async () => {
+    const customerId = await repo.create(samplePII);
+    await repo.delete(customerId);
+
+    await repo.recomputeLoyalty(customerId);
+
+    // Un doc fantasma con solo `accumulatedWashes` rompería el descifrado de
+    // TODA la lista de clientes: no se escribe si el cliente ya no existe.
+    expect(store.has(`workspaces/${workspaceId}/customers/${customerId}`)).toBe(false);
   });
 });

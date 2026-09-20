@@ -106,7 +106,8 @@ export class CustomerRepository {
    *
    * Ordena las transacciones por createdAt ascendente, aplica la lógica
    * `nextAccumulatedValue` una por una, y escribe el contador final.
-   * No-op si el cliente no tiene transacciones (deja el contador como está).
+   * Con el ledger vacío escribe 0 (es el caso de anular el último lavado), y
+   * no toca nada si el cliente ya no existe.
    *
    * El query se hace por customerId sin orderBy para no requerir índice
    * compuesto. El orden se aplica en cliente sobre un array que para un car
@@ -120,7 +121,21 @@ export class CustomerRepository {
       where('customerId', '==', customerId),
     );
     const snap = await getDocs(q);
-    if (snap.empty) return;
+    if (snap.empty) {
+      // Sin transacciones, el contador correcto es 0. El `return` anterior
+      // dejaba el valor previo intacto — y tras anular el único lavado de un
+      // cliente, ese valor previo era justamente el que había que borrar.
+      //
+      // El chequeo de existencia no es paranoia: un `merge: true` sobre un doc
+      // que ya no existe lo resucita con un solo campo, sin `payload`, y ese
+      // fantasma hace fallar el descifrado de la lista ENTERA de clientes.
+      const customerRef = doc(this.runtime.db, this.collectionPath, customerId);
+      const stillAlive = await getDoc(customerRef);
+      if (!stillAlive.exists()) return;
+
+      await setDoc(customerRef, { accumulatedWashes: 0 }, { merge: true });
+      return;
+    }
 
     interface LedgerEntry {
       createdAt: Date;

@@ -157,7 +157,13 @@ service cloud.firestore {
       match /transactions/{transactionId} {
         allow read:   if isWorkspaceMember(workspaceId);
         allow create: if isWorkspaceMember(workspaceId);
-        allow update, delete: if false; // ledger inmutable
+        // Update imposible (el ledger no se reescribe). Delete permitido solo
+        // a owner/admin: es la vía de escape para un lavado mal cargado. La
+        // app borra el doc y recalcula la lealtad del cliente afectado.
+        allow update: if false;
+        allow delete: if isWorkspaceMember(workspaceId)
+                      && (activeOperatorRole() == 'owner'
+                          || activeOperatorRole() == 'admin');
       }
     }
   }
