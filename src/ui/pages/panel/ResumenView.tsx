@@ -13,6 +13,7 @@ import { bootstrapFirebase, type FirebaseRuntime } from '@infra/firebase-bootstr
 import { TransactionRepository } from '@infra/transaction-repository';
 import { Vault } from '@infra/vault';
 import type { WashTransactionView } from '@core/types';
+import { calculateWage } from '@core/wages';
 import styles from './DashboardShell.module.css';
 
 // El filtro de rango es fase 3; hoy la vista lee siempre los últimos 7 días.
@@ -40,6 +41,16 @@ function startOfDay(date: Date): Date {
 
 function soles(amount: number): string {
   return amount.toFixed(2);
+}
+
+/**
+ * El borde de la ventana de siete días, en milisegundos. Lo comparten los KPIs
+ * y los gráficos: si cada uno lo recalculara por su cuenta, un `Date.now()`
+ * distinto a cada lado del cambio de día bastaría para que la nómina no cuadre
+ * con el conteo de lavados que el mismo panel muestra.
+ */
+function windowStart(now: number): number {
+  return startOfDay(new Date(now - (WINDOW_DAYS - 1) * DAY_MS)).getTime();
 }
 
 /**
@@ -173,7 +184,7 @@ export function ResumenView() {
   });
 
   const window7 = useComputed(() => {
-    const since = startOfDay(new Date(Date.now() - (WINDOW_DAYS - 1) * DAY_MS)).getTime();
+    const since = windowStart(Date.now());
     let washes = 0;
     let revenue = 0;
     let free = 0;
@@ -189,6 +200,16 @@ export function ResumenView() {
 
     return { washes, revenue, free, customers: plates.size };
   });
+
+  // La nómina se calcula sobre la misma ventana que los otros KPIs, no sobre
+  // `ledger` entero: media semana de lecturas cobraría lavados que el panel no
+  // está mostrando. Tampoco se cachea: el `reduce` sobre 50 filas es más barato
+  // que el signal que habría que invalidar para ahorrarlo.
+  const wages = useComputed(() =>
+    ledger.value
+      .filter((tx) => tx.createdAt.getTime() >= windowStart(Date.now()))
+      .reduce((sum, tx) => sum + calculateWage(tx.vehicleKind, tx.serviceTier), 0),
+  );
 
   const revenue = useComputed(() => revenueBars(ledger.value, Date.now()));
   const weekdays = useComputed(() => weekdayBars(ledger.value, Date.now()));
@@ -234,12 +255,15 @@ export function ResumenView() {
           <span class={styles.kpiFoot}>placas distintas</span>
         </div>
 
-        {/* La nómina no tiene reglas escritas todavía: un cero honesto con la
-            nota al lado es mejor que un número inventado que alguien crea. */}
+        {/* Suma el papel de tarifas sobre la misma ventana que los otros KPIs.
+            El foot cuenta lavados y no un porcentaje del ingreso: un ratio se
+            rompe con las cortesías (se pagan, no se cobran) y con una semana
+            sin ingresos. */}
         <div class={`${styles.kpi} ${styles.kpiAmber}`}>
           <span class={styles.kpiLabel}>Nómina est.</span>
-          <span class={styles.kpiValue}>S/ 0.00</span>
-          <span class={styles.kpiFoot}>pendiente de definir reglas</span>
+          <span class={styles.kpiValue}>S/ {soles(wages.value)}</span>
+          <span class={styles.kpiFoot}>sobre {window7.value.washes} lavados</span>
+          {/* ponytail: full_deluxe paga 0 hasta que el dueño defina tarifa. */}
         </div>
       </section>
 

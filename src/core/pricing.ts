@@ -5,8 +5,8 @@ export const PRICE_MATRIX: Readonly<
   Record<VehicleKind, Partial<Record<ServiceTier, number>>>
 > = {
   auto:              { basico: 30, intermedio: 40, premium: 55, deluxe: 90,  full_deluxe: 220 },
-  camioneta_cerrada: { basico: 40, intermedio: 50, premium: 65, deluxe: 100, full_deluxe: 260 },
-  pickup:            { basico: 45, intermedio: 65, premium: 80, deluxe: 110, full_deluxe: 260 },
+  camioneta_cerrada: { basico: 40, intermedio: 50, premium: 65, deluxe: 100, full_deluxe: 400 },
+  pickup:            { basico: 45, intermedio: 65, premium: 80, deluxe: 110, full_deluxe: 350 },
   mototaxi:          { basico: 15, completo: 20, full_moto: 30 },
   moto_lineal:       { basico: 10, completo: 15, full_moto: 25 },
 };
