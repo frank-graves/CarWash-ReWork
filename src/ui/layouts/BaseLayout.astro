@@ -1,7 +1,7 @@
 ---
 // src/ui/layouts/BaseLayout.astro
-// Layout Ãºnico de la aplicaciÃ³n. Todo el CSS es local: ni una fuente, ni un icono,
-// ni un script desde un CDN de terceros. Si algo no estÃ¡ en este bundle, no se carga.
+// Layout ÃƒÆ’Ã‚Âºnico de la aplicaciÃƒÆ’Ã‚Â³n. Todo el CSS es local: ni una fuente, ni un icono,
+// ni un script desde un CDN de terceros. Si algo no estÃƒÆ’Ã‚Â¡ en este bundle, no se carga.
 import '@styles/reset.css';
 import '@styles/tokens.css';
 ---
@@ -13,12 +13,12 @@ import '@styles/tokens.css';
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="color-scheme" content="dark light" />
     <meta name="theme-color" content="#09090b" />
-    <!-- Los datos de un negocio no se indexan. Ni aquÃ­ ni en ningÃºn sitio. -->
+    <!-- Los datos de un negocio no se indexan. Ni aquÃƒÆ’Ã‚Â­ ni en ningÃƒÆ’Ã‚Âºn sitio. -->
     <meta name="robots" content="noindex, nofollow" />
-    <!-- Los dos Ãºnicos orÃ­genes que la app toca. El preconnect abre el TCP+TLS
-         mientras el bundle todavÃ­a se estÃ¡ descargando: en una conexiÃ³n frÃ­a a
+    <!-- Los dos ÃƒÆ’Ã‚Âºnicos orÃƒÆ’Ã‚Â­genes que la app toca. El preconnect abre el TCP+TLS
+         mientras el bundle todavÃƒÆ’Ã‚Â­a se estÃƒÆ’Ã‚Â¡ descargando: en una conexiÃƒÆ’Ã‚Â³n frÃƒÆ’Ã‚Â­a a
          Firestore eso son varios cientos de milisegundos que nadie ve pero
-         todos esperan. Ni un tercero mÃ¡s en esta lista. -->
+         todos esperan. Ni un tercero mÃƒÆ’Ã‚Â¡s en esta lista. -->
     <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin />
     <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin />
     <link rel="dns-prefetch" href="https://firestore.googleapis.com" />
@@ -33,8 +33,8 @@ import '@styles/tokens.css';
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>Exclusivo Car Wash</title>
     <!-- El tema guardado se aplica antes de que cargue el bundle: sin esto, la
-         tablet pinta un frame con el tema del sistema y salta al elegido despuÃ©s.
-         Va inline a propÃ³sito: un mÃ³dulo llegarÃ­a tarde para evitar el flash. -->
+         tablet pinta un frame con el tema del sistema y salta al elegido despuÃƒÆ’Ã‚Â©s.
+         Va inline a propÃƒÆ’Ã‚Â³sito: un mÃƒÆ’Ã‚Â³dulo llegarÃƒÆ’Ã‚Â­a tarde para evitar el flash. -->
     <script is:inline>
       (function () {
         try {
@@ -48,8 +48,8 @@ import '@styles/tokens.css';
       })();
     </script>
     <!-- El splash tapa el hueco entre el primer paint y el primer render de
-         Preact: sin Ã©l, la tablet enseÃ±a un rectÃ¡ngulo vacÃ­o durante el
-         bootstrap de Firebase y parece que la app se colgÃ³. Inline y aquÃ­
+         Preact: sin ÃƒÆ’Ã‚Â©l, la tablet enseÃƒÆ’Ã‚Â±a un rectÃƒÆ’Ã‚Â¡ngulo vacÃƒÆ’Ã‚Â­o durante el
+         bootstrap de Firebase y parece que la app se colgÃƒÆ’Ã‚Â³. Inline y aquÃƒÆ’Ã‚Â­
          arriba para que exista antes del primer paint. -->
     <style is:inline>
       #ecw-splash {
@@ -64,12 +64,12 @@ import '@styles/tokens.css';
         transition: opacity 280ms cubic-bezier(0.16, 1, 0.3, 1);
       }
 
-      /* El logo no aparece: entra. Un rectÃ¡ngulo que ya estÃ¡ ahÃ­ al encender la
+      /* El logo no aparece: entra. Un rectÃƒÆ’Ã‚Â¡ngulo que ya estÃƒÆ’Ã‚Â¡ ahÃƒÆ’Ã‚Â­ al encender la
          pantalla se lee como un fallo; uno que llega, como una app. */
       #ecw-splash img {
         opacity: 0;
-        transform: scale(0.92);
-        animation: ecwSplashIn 520ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        transform: scale(0.72); filter: blur(14px);
+        animation: ecwSplashIn 1400ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
       }
 
       #ecw-splash.ecw-splash-out {
@@ -93,12 +93,12 @@ import '@styles/tokens.css';
       }
     </style>
     <script>
-      // El SW solo se registra en producciÃ³n. En dev, el cache-first
-      // interferirÃ­a con el HMR de Vite y verÃ­as CSS viejo tras guardar.
+      // El SW solo se registra en producciÃƒÆ’Ã‚Â³n. En dev, el cache-first
+      // interferirÃƒÆ’Ã‚Â­a con el HMR de Vite y verÃƒÆ’Ã‚Â­as CSS viejo tras guardar.
       if (import.meta.env.PROD && 'serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js').catch(() => {
-            // Un registro fallido no rompe la app: la prÃ³xima visita reintenta.
+            // Un registro fallido no rompe la app: la prÃƒÆ’Ã‚Â³xima visita reintenta.
             // Sin console.warn: en la tablet del lavadero nadie lee la consola.
           });
         });
@@ -107,26 +107,29 @@ import '@styles/tokens.css';
   </head>
   <body>
     <div id="ecw-splash" aria-hidden="true">
-      <img src="/icon.webp" alt="" width="120" height="120" />
+      <img src="/icon.webp" alt="" width="240" height="240" />
     </div>
 
     <slot />
 
     <script is:inline>
-      // El splash se retira cuando `mountApp` ya sabe quÃ© pintar, no cuando
+      // El splash se retira cuando `mountApp` ya sabe quÃƒÆ’Ã‚Â© pintar, no cuando
       // termina de pintarlo: mantenerlo hasta el primer dato de Firestore
-      // cambiarÃ­a un hueco por una pantalla de carga eterna. El temporizador
+      // cambiarÃƒÆ’Ã‚Â­a un hueco por una pantalla de carga eterna. El temporizador
       // de 5s es la red de seguridad: si el arranque se cuelga, el operador
       // no queda encerrado mirando un logo.
+      var __ecwSplashShownAt = Date.now();
       window.__ecwHideSplash = function () {
         var el = document.getElementById('ecw-splash');
         if (!el) return;
-        el.classList.add('ecw-splash-out');
+        var elapsed = Date.now() - __ecwSplashShownAt;
+        var wait = Math.max(0, 1600 - elapsed);
         setTimeout(function () {
-          el.remove();
-        }, 320);
+          el.classList.add('ecw-splash-out');
+          setTimeout(function () { el.remove(); }, 500);
+        }, wait);
       };
-      setTimeout(window.__ecwHideSplash, 5000);
+      setTimeout(window.__ecwHideSplash, 6000);
     </script>
   </body>
 </html>
