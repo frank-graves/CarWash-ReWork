@@ -15,6 +15,12 @@ import styles from './boot.module.css';
 /** Qué shell se pinta cuando la fase es 'app'. */
 type ShellMode = 'staff' | 'panel';
 
+declare global {
+  interface Window {
+    __ecwHideSplash?: () => void;
+  }
+}
+
 function FaultState({ title, detail }: { title: string; detail: string }) {
   return (
     <div class={styles.fault}>
@@ -40,6 +46,15 @@ function renderPhase(
   else render(<AppShell />, root);
 }
 
+// Un frame de espera para que el render que acabamos de pedir llegue al DOM:
+// sin él, el splash se va antes de que haya nada debajo y se ve el flash que
+// venía a tapar. Si el navegador no trae rAF (nadie, hoy), el fallback directo.
+function liftSplash(): void {
+  const go = () => window.__ecwHideSplash?.();
+  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(go);
+  else go();
+}
+
 export async function mountApp(root: HTMLElement, mode: ShellMode = 'staff'): Promise<void> {
   // El tema guardado se aplica antes del primer render: sin esto, la preferencia
   // del operador solo existiría hasta que recargara, y la tablet arrancaría con el
@@ -53,6 +68,9 @@ export async function mountApp(root: HTMLElement, mode: ShellMode = 'staff'): Pr
       <FaultState title="Sin conexión con la base de datos" detail={translateError(thrown)} />,
       root,
     );
+    // El aviso de avería vive debajo del splash: retirarlo también aquí, o el
+    // operador se queda cinco segundos mirando un logo sobre una app rota.
+    liftSplash();
     return;
   }
 
@@ -61,6 +79,7 @@ export async function mountApp(root: HTMLElement, mode: ShellMode = 'staff'): Pr
     deviceReady = await Vault.isDeviceInitialized();
   } catch (thrown) {
     render(<FaultState title="La bóveda no responde" detail={translateError(thrown)} />, root);
+    liftSplash();
     return;
   }
 
@@ -85,4 +104,6 @@ export async function mountApp(root: HTMLElement, mode: ShellMode = 'staff'): Pr
   if (!deviceReady) appPhase.value = 'wizard';
   else if (!Vault.isUnlocked()) appPhase.value = 'unlock';
   else appPhase.value = 'app';
+
+  liftSplash();
 }

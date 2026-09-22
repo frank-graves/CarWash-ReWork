@@ -10,11 +10,12 @@
 import { signal, useSignalEffect } from '@preact/signals';
 import type { ComponentChild } from 'preact';
 import { doc, getDoc } from 'firebase/firestore';
-import { bootstrapFirebase, type FirebaseRuntime } from '@infra/firebase-bootstrap';
+import { bootstrapFirebase } from '@infra/firebase-bootstrap';
 import { OperatorRepository } from '@infra/operator-repository';
 import { Vault } from '@infra/vault';
 import { appPhase } from '@ui/appState';
 import { applyTheme, cycleTheme, readStoredTheme, type Theme } from '@ui/theme';
+import { operatorsCache } from '@ui/pages/AppShell';
 import type { OperatorRole } from '@core/types';
 import { HistoryPage } from '@ui/pages/history/HistoryPage';
 import { ResumenView } from './ResumenView';
@@ -31,19 +32,20 @@ type View =
   | 'inventario'
   | 'alertas';
 
+// El panel es la mitad de gestión de la casa: la versión se publica aquí, en la
+// sidebar, porque el dueño vive en esta pantalla y necesita saber qué corre.
+const PANEL_VERSION = 'v0.0.2';
+
+// Cuántos lavados recientes se escuchan. 50 cubre el día entero y la semana
+// parcial de un lavadero de barrio; paginación de verdad cuando duela.
+const RECENT_LIMIT = 50;
+
 const activeView = signal<View>('resumen');
 const businessName = signal('Cargando…');
 const operatorName = signal('Cargando…');
 const currentRole = signal<OperatorRole | null>(null);
 const theme = signal<Theme>(readStoredTheme());
 const trouble = signal('');
-
-// Runtime y workspace se guardan en signals de módulo, no en props del shell:
-// el shell no los usa para pintar la cabecera, pero `ResumenView` los necesita
-// para suscribirse al ledger, y pasarlos por JSX encadenaría dos re-renders por
-// cada snapshot que llega de Firestore.
-const runtime = signal<FirebaseRuntime | null>(null);
-const workspaceId = signal<string | null>(null);
 
 const VIEW_GROUPS: readonly {
   label: string;
@@ -77,8 +79,15 @@ const VIEW_GROUPS: readonly {
   },
 ];
 
-// Cada vista trae su propio dibujo. Son 16×16 con stroke heredado del color del
-// item, así que el estado activo los pinta sin una sola regla extra.
+// Se calcula una vez y no en cada render: el hint del topbar lo consulta cada
+// vez que cambia de vista y recorrer cuatro arrays para eso es de gratis solo
+// la primera vez.
+const SOON_VIEWS: ReadonlySet<View> = new Set(
+  VIEW_GROUPS.flatMap((group) => group.items.filter((item) => item.comingSoon).map((item) => item.id)),
+);
+
+// Los ocho dibujos del boceto, a 15px y con el stroke heredado del color del
+// item: el estado activo los pinta sin una sola regla extra.
 const VIEW_ICONS: Record<View, () => ComponentChild> = {
   resumen: () => (
     <svg class={styles.navIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -90,8 +99,8 @@ const VIEW_ICONS: Record<View, () => ComponentChild> = {
   ),
   historial: () => (
     <svg class={styles.navIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <path d="M3 3v18h18" />
-      <path d="M7 14l3-3 4 4 5-7" />
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
     </svg>
   ),
   rendimiento: () => (
@@ -137,7 +146,7 @@ const VIEW_ICONS: Record<View, () => ComponentChild> = {
 };
 
 const VIEW_HINTS: Record<View, string> = {
-  resumen: 'el día de hoy, de un vistazo',
+  resumen: 'el negocio, de un vistazo',
   historial: 'todo el ledger, con filtros',
   rendimiento: 'lavadores y operadores · 7 días',
   servicios: 'vehículos, servicios y demanda cruzada',
@@ -158,8 +167,11 @@ const VIEW_TITLES: Record<View, string> = {
   alertas: 'Alertas',
 };
 
+// Los tres roles en inglés y no en castellano: es el vocabulario que el propio
+// dueño usa cuando habla del equipo ("los admin"), y el mismo que aparece en
+// los invites. Traducirlo aquí solo crearía dos nombres para lo mismo.
 const ROLE_LABELS: Record<OperatorRole, string> = {
-  owner: 'Dueño',
+  owner: 'Owner',
   admin: 'Admin',
   staff: 'Staff',
 };
@@ -170,6 +182,12 @@ function initialsOf(fullName: string): string {
   if (!first) return '·';
   const marks = second ? first.charAt(0) + second.charAt(0) : first.charAt(0);
   return marks.toUpperCase();
+}
+
+/** El subtítulo del topbar: el hint de la vista, con la coletilla si aún no existe. */
+function subFor(view: View): string {
+  const hint = VIEW_HINTS[view];
+  return SOON_VIEWS.has(view) ? `${hint} · en desarrollo` : hint;
 }
 
 export function DashboardShell() {
@@ -189,7 +207,10 @@ export function DashboardShell() {
           return;
         }
 
-        const roster = await new OperatorRepository(rt, ws).listAll();
+        const operatorRepo = new OperatorRepository(rt, ws);
+        // El roster se pide una vez por dispositivo: si la app de mostrador ya
+        // lo descifró en esta misma carga de página, aquí llega de la caché.
+        const roster = operatorsCache.value ?? (await operatorRepo.listAll());
         const me = roster.find((operator) => operator.id === uid);
 
         // El panel es de gestión. Un staff que escriba /panel a mano vuelve a
@@ -202,8 +223,6 @@ export function DashboardShell() {
 
         const workspace = await getDoc(doc(rt.db, 'workspaces', ws));
 
-        runtime.value = rt;
-        workspaceId.value = ws;
         currentRole.value = me.role;
         operatorName.value = me.displayName;
         businessName.value = workspace.exists()
@@ -232,10 +251,6 @@ export function DashboardShell() {
     appPhase.value = 'unlock';
   };
 
-  const openRegister = () => {
-    window.location.href = '/';
-  };
-
   // Nada se pinta hasta saber el rol: un panel a medio construir que después se
   // convierte en un redirect es peor que un segundo de "verificando".
   if (currentRole.value === null) {
@@ -252,21 +267,22 @@ export function DashboardShell() {
   return (
     <div class={styles.app}>
       <aside class={styles.sidebar}>
-        <div class={styles.sidebarBrand}>
-          <div class={styles.brandName}>
-            <span class={styles.brandDot}>ECW</span>
-            {businessName.value}
-          </div>
-          <div class={styles.brandSub}>Plataforma · v0.0.1</div>
+        <div class={styles.brand}>
+          <span class={styles.brandDot}>ECW</span>
+          <span class={styles.brandText}>
+            <span class={styles.brandName}>{businessName.value}</span>
+            <span class={styles.brandSub}>Panel · {PANEL_VERSION}</span>
+          </span>
         </div>
 
         {VIEW_GROUPS.map((group) => (
-          <nav key={group.label} class={styles.navSection} aria-label={group.label}>
+          <nav key={group.label} class={styles.nav} aria-label={group.label}>
             <span class={styles.navLabel}>{group.label}</span>
             {group.items.map((item) => (
               <button
                 key={item.id}
                 type="button"
+                title={item.label}
                 class={
                   activeView.value === item.id
                     ? `${styles.navItem} ${styles.navItemActive}`
@@ -278,21 +294,18 @@ export function DashboardShell() {
                 }}
               >
                 {VIEW_ICONS[item.id]()}
-                {item.label}
-                {item.comingSoon && <span class={`${styles.navBadge} ${styles.navBadgeMuted}`}>soon</span>}
+                <span class={styles.navText}>{item.label}</span>
               </button>
             ))}
           </nav>
         ))}
 
         <div class={styles.sidebarFoot}>
-          <div class={styles.operatorChip}>
-            <span class={styles.avatar}>{initialsOf(operatorName.value)}</span>
-            <div class={styles.operatorMeta}>
-              <span class={styles.operatorName}>{operatorName.value}</span>
-              <span class={styles.operatorRole}>{ROLE_LABELS[role]}</span>
-            </div>
-          </div>
+          <span class={styles.avatar}>{initialsOf(operatorName.value)}</span>
+          <span class={styles.opMeta}>
+            <span class={styles.opName}>{operatorName.value}</span>
+            <span class={styles.opRole}>{ROLE_LABELS[role]}</span>
+          </span>
           <button
             type="button"
             class={styles.iconBtn}
@@ -301,18 +314,18 @@ export function DashboardShell() {
             title="Cambiar tema"
           >
             {theme.value === 'light' && (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <circle cx="12" cy="12" r="4" />
                 <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
               </svg>
             )}
             {theme.value === 'dark' && (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
               </svg>
             )}
             {theme.value === 'system' && (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <circle cx="12" cy="12" r="9" />
                 <path d="M12 3v18M3 12h18" />
               </svg>
@@ -333,15 +346,19 @@ export function DashboardShell() {
         </div>
       </aside>
 
-      <div class={styles.mainArea}>
+      <div class={styles.main}>
         <header class={styles.topbar}>
           <div class={styles.topbarLeft}>
             <span class={styles.topbarTitle}>{VIEW_TITLES[activeView.value]}</span>
-            <span class={styles.topbarSub}>{VIEW_HINTS[activeView.value]}</span>
+            <span class={styles.topbarSub}>{subFor(activeView.value)}</span>
           </div>
           <div class={styles.topbarActions}>
-            <button type="button" class={styles.actionBtn} onClick={openRegister}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <button
+              type="button"
+              class={styles.actionBtn}
+              onClick={() => { window.location.href = '/'; }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true">
                 <line x1="12" y1="5" x2="12" y2="19" />
                 <line x1="5" y1="12" x2="19" y2="12" />
               </svg>
@@ -353,10 +370,10 @@ export function DashboardShell() {
         {trouble.value && <p class={styles.trouble}>{trouble.value}</p>}
 
         <main class={styles.content}>
-          {activeView.value === 'resumen' && runtime.value && workspaceId.value && (
-            <ResumenView runtime={runtime.value} workspaceId={workspaceId.value} />
+          {activeView.value === 'resumen' && <ResumenView />}
+          {activeView.value === 'historial' && (
+            <HistoryPage viewerRole={role} recentLimit={RECENT_LIMIT} />
           )}
-          {activeView.value === 'historial' && <HistoryPage viewerRole={currentRole.value} />}
           {activeView.value !== 'resumen' && activeView.value !== 'historial' && (
             <ComingSoonView viewId={activeView.value} />
           )}

@@ -46,33 +46,33 @@ export function ComingSoonView({ viewId }: Props) {
   const copy = COPY[viewId];
 
   return (
-    <section class={styles.soon}>
-      <span class={styles.soonIcon} aria-hidden="true">
-        {/* Reloj de arena: lo único que esta pantalla promete es tiempo. */}
-        <svg
-          width="26"
-          height="26"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.8"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <path d="M6 2h12M6 22h12" />
-          <path d="M6 2v4a6 6 0 0 0 6 6 6 6 0 0 0 6-6V2" />
-          <path d="M6 22v-4a6 6 0 0 1 6-6 6 6 0 0 1 6 6v4" />
-        </svg>
-      </span>
-
-      <span class={`${styles.badge} ${styles.badgeAccent}`}>Próximamente</span>
+    <section class={`${styles.card} ${styles.soonCard}`}>
+      {/* Reloj: lo único que esta pantalla promete es tiempo. */}
+      <svg
+        class={styles.soonGlyph}
+        width="48"
+        height="48"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7v5l3 2" />
+      </svg>
 
       <h2 class={styles.soonTitle}>{copy?.title ?? 'En construcción'}</h2>
 
       <p class={styles.soonText}>
+        Próximamente —{' '}
         {copy?.description ??
-          'Esta vista todavía no está construida. El dato ya está en Firestore: falta la pantalla.'}
+          'esta vista todavía no está construida. El dato ya está en Firestore: falta la pantalla.'}
       </p>
+
+      <span class={`${styles.badge} ${styles.badgeMuted} ${styles.soonBadge}`}>en desarrollo</span>
     </section>
   );
 }

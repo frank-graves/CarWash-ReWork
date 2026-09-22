@@ -6,7 +6,7 @@ import { OperatorRepository } from '@infra/operator-repository';
 import { Vault } from '@infra/vault';
 import { appPhase } from '@ui/appState';
 import { applyTheme, cycleTheme, readStoredTheme, type Theme } from '@ui/theme';
-import type { OperatorRole } from '@core/types';
+import type { OperatorRole, OperatorView } from '@core/types';
 import { WashRegistrationPage } from './wash/WashRegistrationPage';
 import { CustomersPage } from './customers/CustomersPage';
 import { HistoryPage } from './history/HistoryPage';
@@ -29,6 +29,12 @@ const trouble = signal('');
 const currentRole = signal<OperatorRole | null>(null);
 const theme = signal<Theme>(readStoredTheme());
 
+// Caché del roster para la pantalla de al lado. El panel (/panel) descifra los
+// operadores en su propio arranque; si el roster ya está en RAM en esta carga de
+// página, no se vuelve a pedir ni a descifrar. Nunca hay dos shells montados a
+// la vez, así que la caché solo puede estar fría o ser la de este dispositivo.
+export const operatorsCache = signal<OperatorView[] | null>(null);
+
 export function AppShell() {
   useSignalEffect(() => {
     const load = async () => {
@@ -41,15 +47,15 @@ export function AppShell() {
         const workspaceId = await Vault.getWorkspaceId();
         if (!uid || !workspaceId) return;
 
-        // Migración v2 → v3 del operador activo. Se dispara en cada arranque del
-        // shell (es no-op si ya es v3). Sin esto, un operador creado antes de 5.5c
-        // no puede escribir settings porque la rule le exige rolePublic en claro.
+        // El documento del workspace y el roster de operadores son dos consultas
+        // independientes: en serie eran dos idas y vueltas a Firestore con la
+        // tablet esperando de brazos cruzados. En paralelo, una.
         const operatorRepo = new OperatorRepository(runtime, workspaceId);
-        await operatorRepo.migrateLegacyRole();
+        const [workspace, operators] = await Promise.all([
+          getDoc(doc(runtime.db, 'workspaces', workspaceId)),
+          operatorRepo.listAll(),
+        ]);
 
-        // El documento del workspace es el propio workspaces/{id}: un nivel y no
-        // una subcolección /meta, que Firestore rechaza por número impar de segmentos.
-        const workspace = await getDoc(doc(runtime.db, 'workspaces', workspaceId));
         if (!workspace.exists()) {
           // Bootstrap incompleto: la bóveda local existe pero la nube no tiene
           // el documento del workspace. Es el estado trampa del wizard interrumpido.
@@ -59,8 +65,8 @@ export function AppShell() {
           return;
         }
         businessName.value = (workspace.data() as { name: string }).name;
+        operatorsCache.value = operators;
 
-        const operators = await operatorRepo.listAll();
         const me = operators.find((operator) => operator.id === uid);
         if (me) {
           operatorName.value = me.displayName;
@@ -69,6 +75,12 @@ export function AppShell() {
           operatorName.value = 'Operador sin registrar';
           currentRole.value = null;
         }
+
+        // Migración v2 → v4 del operador activo. Va al final y no al principio:
+        // necesita el doc del operador que `listAll` acaba de traer, y es no-op
+        // la mayoría de las veces (el guard corta con solo leer `rolePublic`).
+        // Así la cabecera se pinta antes de que termine la escritura.
+        await operatorRepo.migrateLegacyRole();
       } catch {
         // El shell se pinta igual: el operador puede registrar lavados aunque la
         // cabecera no cargue. Un fallo de red no debe dejar la caja cerrada.

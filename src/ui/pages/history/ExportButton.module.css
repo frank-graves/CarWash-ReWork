@@ -10,12 +10,22 @@
   font-family: var(--font-mono);
   font-size: 13px;
   cursor: pointer;
-  transition: all var(--duration-fast) var(--ease-out-expo);
+  /* Explícito y no `all`: `all` también anima lo que el navegador decida meter
+     aquí mañana, y el layout no se anima. */
+  transition:
+    color var(--duration-fast) var(--ease-out-expo),
+    border-color var(--duration-fast) var(--ease-out-expo),
+    background var(--duration-fast) var(--ease-out-expo),
+    transform var(--duration-fast) var(--ease-spring);
 }
 
 .btn:hover {
   border-color: var(--color-accent);
   color: var(--color-accent);
+}
+
+.btn:active {
+  transform: scale(0.97);
 }
 
 .hiddenLink {

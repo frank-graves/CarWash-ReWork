@@ -9,7 +9,7 @@
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  transition: border-color var(--duration-base) var(--ease-out-expo);
+  transition: border-color var(--duration-fast) var(--ease-out-expo);
   position: relative;
 }
 .card:hover { border-color: var(--color-border-strong); }
@@ -87,12 +87,16 @@
   transition:
     color var(--duration-fast) var(--ease-out-expo),
     background var(--duration-fast) var(--ease-out-expo),
-    border-color var(--duration-fast) var(--ease-out-expo);
+    border-color var(--duration-fast) var(--ease-out-expo),
+    transform var(--duration-fast) var(--ease-spring);
 }
 .viewBtn:hover {
   background: var(--color-surface-hover);
   border-color: var(--color-border);
   color: var(--color-text);
+}
+.viewBtn:active {
+  transform: scale(0.97);
 }
 
 /* Cliente con 6 lavados: listo para reclamar el 7mo gratis. El borde ámbar +

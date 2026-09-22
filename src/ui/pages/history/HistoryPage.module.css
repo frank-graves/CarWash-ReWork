@@ -42,9 +42,9 @@
   line-height: 1;
   cursor: pointer;
   transition:
-    color var(--duration-fast) cubic-bezier(0.22, 1, 0.36, 1),
-    border-color var(--duration-fast) cubic-bezier(0.22, 1, 0.36, 1),
-    background-color var(--duration-fast) cubic-bezier(0.22, 1, 0.36, 1),
+    color var(--duration-fast) var(--ease-out-expo),
+    border-color var(--duration-fast) var(--ease-out-expo),
+    background-color var(--duration-fast) var(--ease-out-expo),
     scale var(--duration-fast) var(--ease-spring);
 }
 
@@ -100,9 +100,9 @@
     inset 0 1px 0 rgb(255 255 255 / 0.03),
     0 1px 0 rgb(0 0 0 / 0.18);
   transition:
-    border-color var(--duration-fast) cubic-bezier(0.22, 1, 0.36, 1),
-    background-color var(--duration-fast) cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow var(--duration-fast) cubic-bezier(0.22, 1, 0.36, 1);
+    border-color var(--duration-fast) var(--ease-out-expo),
+    background-color var(--duration-fast) var(--ease-out-expo),
+    box-shadow var(--duration-fast) var(--ease-out-expo);
 }
 
 .input {
@@ -171,8 +171,8 @@
   padding: 0 var(--space-4);
   border-bottom: 1px solid var(--color-border);
   transition:
-    background-color var(--duration-fast) cubic-bezier(0.22, 1, 0.36, 1),
-    border-color var(--duration-fast) cubic-bezier(0.22, 1, 0.36, 1);
+    background-color var(--duration-fast) var(--ease-out-expo),
+    border-color var(--duration-fast) var(--ease-out-expo);
 }
 
 .row:last-child {
@@ -285,7 +285,8 @@
   transition:
     color var(--duration-fast) var(--ease-out-expo),
     border-color var(--duration-fast) var(--ease-out-expo),
-    background var(--duration-fast) var(--ease-out-expo);
+    background var(--duration-fast) var(--ease-out-expo),
+    transform var(--duration-fast) var(--ease-spring);
 }
 
 .btnAnnul:hover {
@@ -296,6 +297,7 @@
 
 .btnAnnul:active {
   background: rgb(239 68 68 / 0.16);
+  transform: scale(0.97);
 }
 
 .btnAnnul:focus-visible {

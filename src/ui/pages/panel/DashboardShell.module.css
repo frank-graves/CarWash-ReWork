@@ -1,10 +1,16 @@
 /* src/ui/pages/panel/DashboardShell.module.css
-   El panel: sidebar fija + área de trabajo. Los tokens vienen de tokens.css y
-   aquí no se redefine ni uno — este archivo solo decide dónde va cada cosa.
+   El panel v0.0.2: sidebar fija + una sola pantalla de trabajo. Los tokens de
+   color vienen de tokens.css; aquí solo viven las MÉTRICAS del layout
+   (--sidebar-w, --row-h, --gap) y dónde va cada cosa.
 
-   Vive todo en un módulo y no en dos porque ResumenView y ComingSoonView son
-   hijos del mismo armazón: dos archivos con el mismo `.card` serían dos sitios
-   donde arreglar el mismo borde. */
+   Las métricas se declaran en `.app` y no en `:root` a propósito: este módulo
+   viaja también en el bundle de `/` (boot.tsx importa el shell), así que un
+   `:root` global cambiaría el ancho de una sidebar que la app de mostrador no
+   tiene. Lo que no se hereda, no se rompe.
+
+   Todo el vocabulario del boceto vive en un solo módulo porque ResumenView y
+   ComingSoonView son hijos del mismo armazón: dos archivos con el mismo `.card`
+   serían dos sitios donde arreglar el mismo borde. */
 
 /* ============================================================
    ACCESO — mientras se verifica el rol
@@ -20,16 +26,16 @@
 }
 
 .gateMark {
-  width: 34px;
-  height: 34px;
+  width: 24px;
+  height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
+  border-radius: 7px;
   background: var(--color-accent);
   color: #ffffff;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 800;
   animation: gatePulse 1.6s var(--ease-out-expo) infinite;
 }
@@ -53,105 +59,109 @@
 }
 
 /* ============================================================
-   LAYOUT
+   LAYOUT · una sola pantalla
    ============================================================ */
 .app {
+  --sidebar-w: 212px;
+  --row-h: 34px;
+  --gap: var(--space-3);
+
   display: grid;
-  grid-template-columns: 248px 1fr;
-  min-height: 100vh;
+  grid-template-columns: var(--sidebar-w) 1fr;
+  height: 100dvh;
+  overflow: hidden;
 }
 
+/* ---------- SIDEBAR ---------- */
 .sidebar {
   display: flex;
   flex-direction: column;
-  gap: var(--space-6);
-  padding: var(--space-5) var(--space-3);
-  background: var(--color-bg);
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-2);
   border-right: 1px solid var(--color-border);
-  position: sticky;
-  top: 0;
-  height: 100vh;
-  overflow-y: auto;
+  overflow: hidden;
+  min-height: 0;
 }
 
-.sidebarBrand {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 0 var(--space-3);
-  margin-bottom: var(--space-2);
-}
-
-.brandName {
+.brand {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  color: var(--color-text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  padding: 2px var(--space-2) 0;
 }
 
 .brandDot {
-  width: 22px;
-  height: 22px;
-  border-radius: 6px;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
   background: var(--color-accent);
-  display: flex;
-  align-items: center;
-  justify-content: center;
   color: #ffffff;
+  display: grid;
+  place-items: center;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
   flex-shrink: 0;
 }
 
+.brandText {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+
+.brandName {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .brandSub {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 9px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--color-text-muted);
-  padding-left: 30px;
 }
 
 /* ---------- NAVEGACIÓN ---------- */
-.navSection {
+.nav {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
+  min-height: 0;
 }
 
 .navLabel {
-  padding: 0 var(--space-3) 6px;
+  padding: var(--space-2) var(--space-2) 4px;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--color-text-muted);
-  opacity: 0.7;
+  opacity: 0.65;
 }
 
 .navItem {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
+  gap: 9px;
+  width: 100%;
+  padding: 7px 10px;
   border-radius: var(--radius-sm);
   color: var(--color-text-muted);
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 500;
+  text-align: left;
   transition:
     background var(--duration-fast) var(--ease-out-expo),
     color var(--duration-fast) var(--ease-out-expo);
-  position: relative;
-  text-align: left;
-  width: 100%;
 }
 
 .navItem:hover {
@@ -159,8 +169,8 @@
   color: var(--color-text);
 }
 
-/* El activo se marca con relleno Y con la barra de acento: en una tablet con
-   brillo bajo, el gris sobre gris se pierde; la barra carmesí no. */
+/* El activo lleva relleno Y barra: en una tablet con brillo bajo, el gris sobre
+   gris se pierde; el carmesí de 2px no. */
 .navItemActive {
   background: var(--color-surface-hover);
   color: var(--color-text);
@@ -170,115 +180,100 @@
   content: '';
   position: absolute;
   left: 0;
-  top: 8px;
-  bottom: 8px;
+  top: 7px;
+  bottom: 7px;
   width: 2px;
-  background: var(--color-accent);
   border-radius: 0 2px 2px 0;
+  background: var(--color-accent);
 }
 
 .navIcon {
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
   stroke-width: 2;
+  flex-shrink: 0;
+}
+
+.navText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .navBadge {
   margin-left: auto;
-  min-width: 18px;
-  height: 18px;
+  min-width: 17px;
+  height: 17px;
   padding: 0 5px;
   border-radius: var(--radius-full);
   background: var(--color-accent);
   color: #ffffff;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 700;
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 
-.navBadgeMuted {
-  background: transparent;
-  border: 1px solid var(--color-border-strong);
-  color: var(--color-text-muted);
-  font-weight: 600;
-  letter-spacing: 0.04em;
+.navBadgeAmber {
+  background: var(--color-amber);
+  color: #0a0a0a;
 }
 
 /* ---------- PIE DEL SIDEBAR ---------- */
 .sidebarFoot {
   margin-top: auto;
-  padding: var(--space-3);
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  padding-top: var(--space-3);
   border-top: 1px solid var(--color-border);
 }
 
-.operatorChip {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px;
-  margin-right: auto;
-  border-radius: var(--radius-sm);
-  min-width: 0;
-  transition: background var(--duration-fast) var(--ease-out-expo);
-}
-
-.operatorChip:hover {
-  background: var(--color-surface);
-}
-
 .avatar {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
+  flex-shrink: 0;
   background: linear-gradient(135deg, var(--color-accent), #7c1d3f);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  place-items: center;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
   color: #ffffff;
-  flex-shrink: 0;
 }
 
-.operatorMeta {
+.opMeta {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  line-height: 1.2;
+  line-height: 1.15;
 }
 
-.operatorName {
-  font-size: 13px;
+.opName {
+  font-size: 12px;
   font-weight: 600;
-  color: var(--color-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.operatorRole {
+.opRole {
   font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--color-text-muted);
+  font-size: 9px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  color: var(--color-text-muted);
 }
 
 .iconBtn {
-  width: 34px;
-  height: 34px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   color: var(--color-text-muted);
@@ -286,7 +281,6 @@
     color var(--duration-fast) var(--ease-out-expo),
     border-color var(--duration-fast) var(--ease-out-expo),
     transform var(--duration-fast) var(--ease-spring);
-  flex-shrink: 0;
 }
 
 .iconBtn:hover {
@@ -298,65 +292,69 @@
   transform: scale(0.94);
 }
 
-/* ---------- ÁREA PRINCIPAL ---------- */
-.mainArea {
+/* ---------- ÁREA PRINCIPAL ----------
+   El boceto reparte su columna en tres filas de grid (topbar, toolbar,
+   contenido). Aquí no hay toolbar —las sub-pestañas y el rango son fase 3— y el
+   aviso de error es opcional, así que la columna es flex: así el contenido se
+   queda con lo que sobre haya dos hijos o tres. */
+.main {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  min-height: 0;
   min-width: 0;
 }
 
 .topbar {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
   gap: var(--space-4);
-  padding: var(--space-5) var(--space-8);
+  padding: var(--space-3) var(--space-5);
   border-bottom: 1px solid var(--color-border);
-  background: var(--color-bg);
-  position: sticky;
-  top: 0;
-  z-index: 10;
 }
 
 .topbarLeft {
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  min-width: 0;
+  line-height: 1.2;
 }
 
 .topbarTitle {
-  font-size: 18px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 650;
   letter-spacing: -0.01em;
-  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .topbarSub {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10.5px;
   color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .topbarActions {
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  flex-shrink: 0;
 }
 
 .actionBtn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 9px 14px;
+  gap: 7px;
+  padding: 8px 13px;
   background: var(--color-accent);
-  border: 1px solid var(--color-accent);
   border-radius: var(--radius-sm);
   color: #ffffff;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 600;
-  white-space: nowrap;
   transition:
     background var(--duration-fast) var(--ease-out-expo),
     transform var(--duration-fast) var(--ease-spring);
@@ -370,42 +368,89 @@
   transform: scale(0.97);
 }
 
+.ghostBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  font-weight: 500;
+  transition:
+    background var(--duration-fast) var(--ease-out-expo),
+    border-color var(--duration-fast) var(--ease-out-expo),
+    transform var(--duration-fast) var(--ease-spring);
+}
+
+.ghostBtn:hover {
+  background: var(--color-surface-hover);
+  border-color: var(--color-border-strong);
+}
+
+.ghostBtn:active {
+  transform: scale(0.97);
+}
+
 .trouble {
   margin: 0;
-  padding: var(--space-3) var(--space-8);
+  padding: var(--space-2) var(--space-5);
   background: var(--color-accent-soft);
   border-bottom: 1px solid var(--color-border);
   color: var(--color-text);
-  font-size: 13px;
+  font-size: 12.5px;
 }
 
 .content {
   flex: 1;
-  padding: var(--space-6) var(--space-8) var(--space-10);
+  min-height: 0;
+  padding: var(--space-3) var(--space-5) var(--space-4);
+  /* El historial es la única vista que puede pasarse de alto: en vez de
+     recortarla contra el borde de la pantalla, scrollea su carril. El resumen
+     cabe entero y nunca enseña barra. */
+  overflow-y: auto;
+}
+
+/* Cambio de vista. Es lo único decorativo de esta fase: 3px y un fundido, en
+   GPU (opacity + transform), sin tocar el layout ni la primera pintura. */
+.content > * {
+  animation: viewFade var(--duration-base) var(--ease-out-expo);
+}
+
+@keyframes viewFade {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /* ============================================================
-   REJILLA DE CONTENIDO — columna principal + rail
+   REJILLAS DE CONTENIDO
    ============================================================ */
-.shell {
+.panel {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
-  gap: var(--space-6);
-  width: min(1320px, 100%);
-  margin: 0 auto;
+  gap: var(--gap);
+  height: 100%;
+  min-height: 0;
 }
 
-.mainCol {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-6);
-  min-width: 0;
+.rowsKpi {
+  grid-template-rows: auto minmax(240px, 1fr);
 }
 
-.rail {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
+.subgrid {
+  display: grid;
+  gap: var(--gap);
+  min-height: 0;
+}
+
+.cols2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 /* ============================================================
@@ -414,25 +459,61 @@
 .kpis {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--space-4);
+  gap: var(--gap);
 }
 
 .kpi {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-5);
-  background:
-    linear-gradient(to bottom, rgb(255 255 255 / 0.02), transparent 42%),
-    var(--color-surface);
+  gap: 5px;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.03);
+  min-width: 0;
   transition: border-color var(--duration-fast) var(--ease-out-expo);
 }
 
 .kpi:hover {
   border-color: var(--color-border-strong);
+}
+
+.kpiLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kpiValue {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  line-height: 1.1;
+  font-size: clamp(17px, 1.65vw, 23px);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kpiValueText {
+  font-family: var(--font-sans);
+  font-size: clamp(14px, 1.2vw, 17px);
+}
+
+.kpiFoot {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .kpiAccent .kpiValue {
@@ -443,154 +524,192 @@
   color: var(--color-amber);
 }
 
-.kpiLabel {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--color-text-muted);
+.kpiSuccess .kpiValue {
+  color: var(--color-success);
 }
 
-.kpiValue {
-  font-family: var(--font-mono);
-  font-size: 26px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  font-variant-numeric: tabular-nums;
-  color: var(--color-text);
-  line-height: 1;
-}
-
-.kpiFoot {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--color-text-muted);
-  font-variant-numeric: tabular-nums;
+.kpiInfo .kpiValue {
+  color: var(--color-info);
 }
 
 /* ============================================================
-   TARJETAS
+   CARDS
    ============================================================ */
 .card {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-  padding: var(--space-5);
+  gap: var(--space-3);
+  padding: var(--space-4);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.03);
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .cardHead {
   display: flex;
-  justify-content: space-between;
   align-items: baseline;
+  justify-content: space-between;
   gap: var(--space-3);
-  flex-wrap: wrap;
 }
 
 .cardTitle {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--color-text);
+  font-size: 13.5px;
+  font-weight: 620;
   letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .cardHint {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10px;
   color: var(--color-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.cardBody {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 /* ============================================================
-   GRÁFICO
+   GRÁFICO DE BARRAS — CSS puro, cero librerías
    ============================================================ */
-.chartWrap {
-  position: relative;
-  margin-top: var(--space-2);
+.vbars {
+  display: flex;
+  align-items: stretch;
+  gap: clamp(3px, 0.8%, 10px);
+  height: 100%;
+  min-height: 0;
 }
 
-.chartSvg {
+.vbar {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 4px;
+  text-align: center;
+}
+
+.vbarNum {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.vbarTrack {
+  display: flex;
+  align-items: flex-end;
+  min-height: 0;
+}
+
+.vbarFill {
   width: 100%;
-  height: 180px;
-  display: block;
-  overflow: visible;
+  min-height: 3px;
+  border-radius: 5px 5px 2px 2px;
+  background: linear-gradient(to top, rgb(var(--color-accent-rgb) / 0.5), var(--color-accent));
+  transition:
+    height 420ms var(--ease-out-expo),
+    filter var(--duration-fast) var(--ease-out-expo);
 }
 
-.chartGrid {
-  stroke: var(--color-border);
-  stroke-dasharray: 2 4;
-  stroke-width: 1;
+.vbar:hover .vbarFill {
+  filter: brightness(1.18);
 }
 
-/* El `fill` del área va como atributo en el JSX, no aquí: un `url(#id)` dentro
-   del CSS pasa por el minificador y por el resolvedor de URLs del bundler, y el
-   degradado no vale un round-trip por ese infierno. */
-.chartArea {
-  opacity: 0;
-  animation: areaFade 900ms var(--ease-out-expo) forwards;
+.vbarFillInfo {
+  background: linear-gradient(to top, rgb(var(--color-info-rgb) / 0.5), var(--color-info));
 }
 
-@keyframes areaFade {
-  to {
-    opacity: 1;
-  }
+.vbarFillSuccess {
+  background: linear-gradient(to top, rgb(var(--color-success-rgb) / 0.5), var(--color-success));
 }
 
-/* El trazo se dibuja solo: 500 unidades de guion que se recorren en 900ms. La
-   línea no se recalcula ni se anima por JS — es todo CSS. */
-.chartLine {
-  fill: none;
-  stroke: var(--color-accent);
-  stroke-width: 2;
-  stroke-linejoin: round;
-  stroke-linecap: round;
-  stroke-dasharray: 500;
-  stroke-dashoffset: 500;
-  animation: drawLine 900ms var(--ease-out-expo) forwards;
+.vbarLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-@keyframes drawLine {
-  to {
-    stroke-dashoffset: 0;
-  }
+/* El pico del periodo se marca en el texto, no en la barra: dos acentos
+   compitiendo convierten un gráfico en un semáforo. */
+.vbarPeak .vbarLabel {
+  color: var(--color-text);
+  font-weight: 700;
 }
 
-.chartDot {
-  fill: var(--color-bg);
-  stroke: var(--color-accent);
-  stroke-width: 2;
-  opacity: 0;
-  animation: dotFade 300ms var(--ease-out-expo) forwards;
+/* Barras horizontales */
+.hbars {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+  gap: var(--space-2);
+  height: 100%;
+  min-height: 0;
 }
 
-@keyframes dotFade {
-  to {
-    opacity: 1;
-  }
+.hbar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 0;
 }
 
-.chartAxis {
+.hbarTop {
   display: flex;
   justify-content: space-between;
-  margin-top: var(--space-3);
+  align-items: baseline;
+  gap: var(--space-3);
+  font-size: 12.5px;
+}
+
+.hbarTop > :first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hbarTop > :last-child {
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--color-text-muted);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
-.axisActive {
-  color: var(--color-text);
-  font-weight: 700;
+.hbarTrack {
+  height: 7px;
+  background: var(--color-bg);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.hbarFill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: var(--color-accent);
+  transition: width 420ms var(--ease-out-expo);
+}
+
+.hbarFillInfo {
+  background: var(--color-info);
 }
 
 /* ============================================================
@@ -601,19 +720,29 @@
   flex-direction: column;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
+  background: var(--color-bg);
+  min-height: 0;
   overflow: hidden;
-  background: var(--color-surface);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.03);
+}
+
+.tbody {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.tbodyScroll {
+  overflow-y: auto;
 }
 
 .row {
   display: grid;
-  grid-template-columns: 60px minmax(0, 1.4fr) 96px minmax(0, 1.1fr) auto;
-  gap: var(--space-4);
   align-items: center;
-  padding: var(--space-3) var(--space-4);
+  gap: var(--space-3);
+  height: var(--row-h);
+  padding: 0 var(--space-4);
   border-bottom: 1px solid var(--color-border);
-  transition: background-color var(--duration-fast) var(--ease-out-expo);
+  grid-template-columns: minmax(0, 1fr) 90px;
+  transition: background var(--duration-fast) var(--ease-out-expo);
 }
 
 .row:last-child {
@@ -624,287 +753,240 @@
   background: var(--color-surface-hover);
 }
 
+.rowC2 {
+  grid-template-columns: minmax(0, 1fr) 104px;
+}
+
+.rowC4 {
+  grid-template-columns: minmax(0, 1fr) 84px 92px 84px;
+}
+
+.rowC5 {
+  grid-template-columns: minmax(0, 1fr) 62px 78px 78px 88px;
+}
+
+.rowC6 {
+  grid-template-columns: 58px minmax(0, 1.2fr) 88px minmax(0, 1fr) 96px 90px;
+}
+
 .headRow {
-  background: var(--color-bg);
+  background: var(--color-surface);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--color-text-muted);
+  height: 30px;
 }
 
-.headNum {
+.headRow:hover {
+  background: var(--color-surface);
+}
+
+.headRow > :not(:first-child) {
   text-align: right;
-}
-
-.cellDate {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--color-text-muted);
-  font-variant-numeric: tabular-nums;
 }
 
 .cellName {
   min-width: 0;
-  font-size: 14px;
-  font-weight: 550;
-  color: var(--color-text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.cellPlate {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  letter-spacing: 0.04em;
-  color: var(--color-text-muted);
-  white-space: nowrap;
-}
-
-.cellService {
   font-size: 13px;
-  color: color-mix(in srgb, var(--color-text) 85%, var(--color-text-muted));
+  font-weight: 550;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.cellSub {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cellNum {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cellNumMuted {
+  color: var(--color-text-muted);
 }
 
 .cellMoney {
   font-family: var(--font-mono);
-  font-size: 14px;
+  font-size: 12.5px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: var(--color-text);
-  justify-self: end;
+  text-align: right;
   white-space: nowrap;
 }
 
-.freeCell {
+.cellMoneySuccess {
+  color: var(--color-success);
+}
+
+.cellMoneyFree {
   color: var(--color-amber);
 }
 
-.freeMark {
-  margin-left: var(--space-1);
-  font-size: 12px;
+.cellEnd {
+  justify-self: end;
 }
 
-.empty {
-  padding: var(--space-8);
-  text-align: center;
-  color: var(--color-text-muted);
-  font-size: 14px;
-}
-
-/* ============================================================
-   RAIL
-   ============================================================ */
-.railCard {
+.moreRow {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-4);
+  align-items: center;
+  justify-content: center;
+  height: 26px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--color-text-muted);
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.03);
-}
-
-.railTitle {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--color-text-muted);
-}
-
-.railList {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  list-style: none;
-}
-
-.railItem {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  background: var(--color-bg);
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  color: var(--color-text);
-  transition: background var(--duration-fast) var(--ease-out-expo);
-}
-
-.railItem:hover {
-  background: var(--color-surface-hover);
-}
-
-.name {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.meta {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--color-text-muted);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.railEmpty {
-  padding: var(--space-3);
-  text-align: center;
-  font-size: 12px;
-  color: var(--color-text-muted);
-  border: 1px dashed var(--color-border);
-  border-radius: var(--radius-sm);
+  border-top: 1px solid var(--color-border);
 }
 
 /* ============================================================
-   SELLOS Y PÍLDORAS
+   BADGES
    ============================================================ */
-.stamps {
-  display: flex;
-  gap: 3px;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-.stamp {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  border: 1px solid var(--color-border-strong);
-  background: transparent;
-}
-
-.stampFilled {
-  background: var(--color-accent);
-  border-color: var(--color-accent);
-}
-
-.stampFree {
-  border-color: var(--color-amber);
-}
-
 .badge {
-  padding: 3px 8px;
+  padding: 2px 7px;
   border-radius: var(--radius-full);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
   white-space: nowrap;
 }
 
-.badgeAccent {
-  background: var(--color-accent-soft);
-  color: var(--color-accent);
-  border: 1px solid rgb(var(--color-accent-rgb) / 0.4);
+.badgeAmber {
+  background: var(--color-amber);
+  color: #0a0a0a;
+}
+
+.badgeDanger {
+  background: rgb(239 68 68 / 0.16);
+  color: var(--color-danger);
+  border: 1px solid rgb(239 68 68 / 0.4);
+}
+
+.badgeSuccess {
+  background: rgb(var(--color-success-rgb) / 0.15);
+  color: var(--color-success);
+  border: 1px solid rgb(var(--color-success-rgb) / 0.4);
+}
+
+.badgeMuted {
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border-strong);
 }
 
 /* ============================================================
-   PRÓXIMAMENTE
+   VACÍO
    ============================================================ */
-.soon {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-4);
-  width: min(560px, 100%);
-  margin: var(--space-10) auto;
-  padding: var(--space-10) var(--space-6);
+.empty {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  min-height: 56px;
+  padding: var(--space-4);
   text-align: center;
-  background:
-    linear-gradient(to bottom, rgb(255 255 255 / 0.02), transparent 42%),
-    var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.03);
+  color: var(--color-text-muted);
+  font-size: 12.5px;
 }
 
-.soonIcon {
-  width: 52px;
-  height: 52px;
-  display: flex;
+/* ============================================================
+   EN DESARROLLO
+   ============================================================ */
+.soonCard {
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-full);
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
+  text-align: center;
+  height: 100%;
+}
+
+.soonGlyph {
   color: var(--color-text-muted);
 }
 
 .soonTitle {
+  margin-top: var(--space-4);
   font-size: 20px;
   font-weight: 600;
   letter-spacing: -0.01em;
-  color: var(--color-text);
 }
 
 .soonText {
-  max-width: 42ch;
+  max-width: 360px;
   color: var(--color-text-muted);
-  font-size: 14px;
+  font-size: 13.5px;
   line-height: 1.6;
 }
 
+.soonBadge {
+  margin-top: var(--space-4);
+}
+
 /* ============================================================
-   RESPONSIVE
+   RESPONSIVE — el objetivo es que TODO quepa en una pantalla
    ============================================================ */
-@media (max-width: 1100px) {
-  .shell {
-    grid-template-columns: minmax(0, 1fr);
+@media (max-width: 1280px) {
+  .app {
+    --sidebar-w: 196px;
+    --row-h: 32px;
   }
 }
 
-@media (max-width: 820px) {
-  /* Debajo de 820px el sidebar se acuesta: el rail de secciones se desliza en
-     horizontal y la navegación deja de comerse un cuarto de la pantalla. Es el
-     mismo movimiento que hace un móvil con su barra inferior, sin JS. */
+@media (max-width: 1024px) {
   .app {
-    grid-template-columns: minmax(0, 1fr);
+    --gap: var(--space-2);
+    --row-h: 31px;
   }
 
-  .sidebar {
-    position: static;
-    height: auto;
-    border-right: 0;
-    border-bottom: 1px solid var(--color-border);
-    flex-direction: row;
-    align-items: center;
-    gap: var(--space-3);
-    padding: var(--space-3);
-    overflow-x: auto;
-    overflow-y: hidden;
+  .content {
+    padding: var(--space-3) var(--space-4);
   }
 
-  .sidebarBrand {
+  .topbar {
+    padding: var(--space-2) var(--space-4);
+  }
+
+  .kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 860px) {
+  .app {
+    --sidebar-w: 58px;
+  }
+
+  /* El sidebar se queda en iconos: con el nombre del negocio y las etiquetas,
+     la navegación se come un cuarto de una pantalla que en la tablet es todo
+     lo que hay. */
+  .brandText,
+  .navLabel,
+  .navText,
+  .opMeta {
     display: none;
   }
 
-  .navSection {
-    flex-direction: row;
-    gap: 4px;
-    flex-shrink: 0;
-  }
-
-  .navLabel {
-    display: none;
+  .brand {
+    justify-content: center;
+    padding: 2px 0;
   }
 
   .navItem {
-    padding: 6px 12px;
-    white-space: nowrap;
+    justify-content: center;
+    padding: 8px 0;
   }
 
   .navItemActive::before {
@@ -916,81 +998,101 @@
     color: #ffffff;
   }
 
+  .navBadge {
+    position: absolute;
+    top: 1px;
+    right: 3px;
+    margin: 0;
+    min-width: 14px;
+    height: 14px;
+    font-size: 8.5px;
+    padding: 0 3px;
+  }
+
   .sidebarFoot {
-    margin: 0 0 0 auto;
-    border-top: 0;
-    padding: 0;
+    flex-direction: column;
+    gap: var(--space-2);
   }
 
-  .operatorMeta {
-    display: none;
-  }
-
-  .operatorChip {
-    padding: 0;
-    margin-right: 0;
-  }
-
-  .topbar {
-    padding: var(--space-4);
+  .cols2 {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .trouble {
-    padding: var(--space-3) var(--space-4);
+    padding: var(--space-2) var(--space-4);
+  }
+}
+
+@media (max-width: 620px) {
+  .app {
+    --row-h: 30px;
   }
 
-  .content {
-    padding: var(--space-4);
+  .topbarSub {
+    display: none;
   }
 
   .kpis {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-}
 
-/* --- Móvil (hasta 639.98px) ------------------------------------------------ */
-@media (max-width: 639.98px) {
-  .kpis {
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-3);
+  .kpi {
+    padding: var(--space-2) var(--space-3);
   }
 
-  .card,
-  .kpi,
-  .railCard {
-    padding: var(--space-4);
-  }
-
-  .kpiValue {
-    font-size: 22px;
-  }
-
-  .chartSvg {
-    height: 140px;
-  }
-
-  .topbarTitle {
-    font-size: 16px;
-  }
-
-  /* Cinco columnas no caben a 320px: la cabecera de la tabla se cae y las
-     celdas se apilan de dos en dos. Menos columnas, misma información. */
-  .row {
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: var(--space-1) var(--space-3);
-    padding: var(--space-3);
-  }
-
-  .headRow {
+  .kpiFoot {
     display: none;
   }
 
-  .cellDate {
-    font-size: 11px;
+  .content {
+    padding: var(--space-3);
   }
 
-  .soon {
-    margin: var(--space-6) auto;
-    padding: var(--space-6) var(--space-4);
+  /* Tres columnas no caben a 320px: las celdas que sobran se caen y la fila se
+     queda con la identidad y el dinero. Menos columnas, misma decisión. */
+  .rowC4,
+  .rowC5 {
+    grid-template-columns: minmax(0, 1fr) 66px 80px;
+  }
+
+  .rowC4 > *:nth-child(n + 4),
+  .rowC5 > *:nth-child(n + 4) {
+    display: none;
+  }
+
+  .rowC5 > *:last-child {
+    display: block;
+  }
+
+  .rowC6 {
+    grid-template-columns: 52px minmax(0, 1fr) 84px;
+  }
+
+  .rowC6 > *:nth-child(n + 3):nth-child(-n + 5) {
+    display: none;
+  }
+
+  .rowC6 > *:nth-child(3) {
+    display: block;
+  }
+}
+
+/* Pantallas bajas: se compacta al máximo para no romper el one-screen */
+@media (max-height: 640px) {
+  .app {
+    --row-h: 28px;
+    --gap: var(--space-2);
+  }
+
+  .kpiFoot {
+    display: none;
+  }
+
+  .card {
+    padding: var(--space-3);
+  }
+
+  .kpi {
+    padding: var(--space-2) var(--space-3);
   }
 }

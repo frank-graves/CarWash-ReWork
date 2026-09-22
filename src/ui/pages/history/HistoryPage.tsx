@@ -65,9 +65,15 @@ interface Props {
    * Sin prop, vista de mostrador.
    */
   viewerRole?: OperatorRole;
+  /**
+   * Cuántos lavados recientes se escuchan. El mostrador vive en esta vista y
+   * quiere el mes largo; el panel la abre de paso y le basta con la semana, así
+   * que pide menos y paga menos lecturas. Mismo componente, dos presupuestos.
+   */
+  recentLimit?: number;
 }
 
-export function HistoryPage({ viewerRole = 'staff' }: Props) {
+export function HistoryPage({ viewerRole = 'staff', recentLimit = 200 }: Props) {
   const runtime = useSignal<FirebaseRuntime | null>(null);
   const workspaceId = useSignal<string | null>(null);
   const transactions = useSignal<WashTransactionView[]>([]);
@@ -101,7 +107,7 @@ export function HistoryPage({ viewerRole = 'staff' }: Props) {
 
     loading.value = true;
     const ledger = new TransactionRepository(runtime.value, workspaceId.value);
-    const unsubscribe = ledger.subscribeRecent(200, (freshRows) => {
+    const unsubscribe = ledger.subscribeRecent(recentLimit, (freshRows) => {
       transactions.value = freshRows;
       loading.value = false;
     });

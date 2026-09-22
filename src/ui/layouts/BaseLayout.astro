@@ -15,6 +15,14 @@ import '@styles/tokens.css';
     <meta name="theme-color" content="#09090b" />
     <!-- Los datos de un negocio no se indexan. Ni aquí ni en ningún sitio. -->
     <meta name="robots" content="noindex, nofollow" />
+    <!-- Los dos únicos orígenes que la app toca. El preconnect abre el TCP+TLS
+         mientras el bundle todavía se está descargando: en una conexión fría a
+         Firestore eso son varios cientos de milisegundos que nadie ve pero
+         todos esperan. Ni un tercero más en esta lista. -->
+    <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin />
+    <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin />
+    <link rel="dns-prefetch" href="https://firestore.googleapis.com" />
+    <link rel="dns-prefetch" href="https://identitytoolkit.googleapis.com" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" href="/favicon.ico" />
     <link rel="manifest" href="/manifest.webmanifest" />
@@ -39,6 +47,51 @@ import '@styles/tokens.css';
         }
       })();
     </script>
+    <!-- El splash tapa el hueco entre el primer paint y el primer render de
+         Preact: sin él, la tablet enseña un rectángulo vacío durante el
+         bootstrap de Firebase y parece que la app se colgó. Inline y aquí
+         arriba para que exista antes del primer paint. -->
+    <style is:inline>
+      #ecw-splash {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--color-bg);
+        z-index: 9999;
+        opacity: 1;
+        transition: opacity 280ms cubic-bezier(0.16, 1, 0.3, 1);
+      }
+
+      /* El logo no aparece: entra. Un rectángulo que ya está ahí al encender la
+         pantalla se lee como un fallo; uno que llega, como una app. */
+      #ecw-splash img {
+        opacity: 0;
+        transform: scale(0.92);
+        animation: ecwSplashIn 520ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+      }
+
+      #ecw-splash.ecw-splash-out {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      @keyframes ecwSplashIn {
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        #ecw-splash img {
+          animation: none;
+          opacity: 1;
+          transform: none;
+        }
+      }
+    </style>
     <script>
       // El SW solo se registra en producción. En dev, el cache-first
       // interferiría con el HMR de Vite y verías CSS viejo tras guardar.
@@ -53,6 +106,27 @@ import '@styles/tokens.css';
     </script>
   </head>
   <body>
+    <div id="ecw-splash" aria-hidden="true">
+      <img src="/icon.svg" alt="" width="120" height="120" />
+    </div>
+
     <slot />
+
+    <script is:inline>
+      // El splash se retira cuando `mountApp` ya sabe qué pintar, no cuando
+      // termina de pintarlo: mantenerlo hasta el primer dato de Firestore
+      // cambiaría un hueco por una pantalla de carga eterna. El temporizador
+      // de 5s es la red de seguridad: si el arranque se cuelga, el operador
+      // no queda encerrado mirando un logo.
+      window.__ecwHideSplash = function () {
+        var el = document.getElementById('ecw-splash');
+        if (!el) return;
+        el.classList.add('ecw-splash-out');
+        setTimeout(function () {
+          el.remove();
+        }, 320);
+      };
+      setTimeout(window.__ecwHideSplash, 5000);
+    </script>
   </body>
 </html>
