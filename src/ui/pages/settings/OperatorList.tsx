@@ -37,6 +37,7 @@ export function OperatorList({ runtime, workspaceId, currentOperatorId, viewerRo
   const loading = useSignal(true);
   const error = useSignal('');
   const busyOperatorId = useSignal<string | null>(null);
+  const busyExpelling = useSignal<string | null>(null);
 
   useSignalEffect(() => {
     const repo = new OperatorRepository(runtime, workspaceId);
@@ -65,6 +66,33 @@ export function OperatorList({ runtime, workspaceId, currentOperatorId, viewerRo
     }
   };
 
+  const expel = async (operator: OperatorView): Promise<void> => {
+    const ok = window.confirm(
+      `¿Expulsar a ${operator.displayName}?\n\n` +
+      `Se borra su acceso al workspace en este instante: no va a poder ` +
+      `registrar lavados ni ver clientes. Para que vuelva a entrar, ` +
+      `vas a tener que generarle un código de conexión nuevo.\n\n` +
+      `Su bóveda local queda intacta en su dispositivo.`,
+    );
+    if (!ok) return;
+
+    busyExpelling.value = operator.id;
+    error.value = '';
+    try {
+      const repo = new OperatorRepository(runtime, workspaceId);
+      await repo.expel(operator.id);
+      // Refetch en vez de mutar el array: si otra tablet cambió algo mientras
+      // tanto, la lista lo recoge.
+      operators.value = await repo.listAll();
+    } catch (thrown) {
+      error.value = isPermissionDenied(thrown)
+        ? 'Solo el dueño puede expulsar operadores.'
+        : translateError(thrown);
+    } finally {
+      busyExpelling.value = null;
+    }
+  };
+
   return (
     <div class={styles.root}>
       {loading.value ? (
@@ -78,19 +106,31 @@ export function OperatorList({ runtime, workspaceId, currentOperatorId, viewerRo
               <span class={styles.name}>{op.displayName}</span>
               {op.id === currentOperatorId && <span class={styles.self}>tú</span>}
               {viewerRole === 'owner' && op.id !== currentOperatorId ? (
-                <select
-                  class={styles.roleSelect}
-                  value={op.role}
-                  disabled={busyOperatorId.value === op.id}
-                  aria-label={`Rol de ${op.displayName}`}
-                  onChange={(event) => {
-                    void changeRole(op.id, event.currentTarget.value);
-                  }}
-                >
-                  <option value="owner">owner</option>
-                  <option value="admin">admin</option>
-                  <option value="staff">staff</option>
-                </select>
+                <div class={styles.rowActions}>
+                  <select
+                    class={styles.roleSelect}
+                    value={op.role}
+                    disabled={busyOperatorId.value === op.id}
+                    aria-label={`Rol de ${op.displayName}`}
+                    onChange={(event) => {
+                      void changeRole(op.id, event.currentTarget.value);
+                    }}
+                  >
+                    <option value="owner">owner</option>
+                    <option value="admin">admin</option>
+                    <option value="staff">staff</option>
+                  </select>
+                  <button
+                    type="button"
+                    class={styles.expelBtn}
+                    onClick={() => { void expel(op); }}
+                    disabled={busyExpelling.value === op.id}
+                    aria-label={`Expulsar a ${op.displayName}`}
+                    title="Expulsar operador"
+                  >
+                    {busyExpelling.value === op.id ? '…' : 'Expulsar'}
+                  </button>
+                </div>
               ) : (
                 <span class={roleClass(op.role, styles)}>{op.role}</span>
               )}
@@ -103,7 +143,9 @@ export function OperatorList({ runtime, workspaceId, currentOperatorId, viewerRo
 
       {viewerRole === 'owner' ? (
         <p class={styles.note}>
-          Podés cambiar el rol de cualquier operador excepto el tuyo. Los dispositivos
+          Podés cambiar el rol de cualquier operador excepto el tuyo, y expulsar a
+          quien ya no trabaja acá. Expulsar borra su acceso al instante — para que
+          vuelva a entrar, generá un código de conexión nuevo. Los dispositivos
           nuevos se enrolan con un código de conexión.
         </p>
       ) : (

@@ -10,6 +10,7 @@ import {
   setDoc,
   query,
   serverTimestamp,
+  deleteDoc,
 } from 'firebase/firestore';
 import { PrivacyVault } from '@infra/crypto';
 import { SessionKeyManager } from '@infra/session-key';
@@ -76,6 +77,18 @@ export class OperatorRepository {
       { rolePublic: newRole },
       { merge: true },
     );
+  }
+
+  /**
+   * Expulsa a un operador: borra su doc de `operators/{uid}`. La rule exige
+   * que sea owner y que no se borre a sí mismo. El dispositivo del expulsado
+   * queda con bóveda intacta pero sin acceso al workspace: `isWorkspaceMember`
+   * deja de encontrarlo en Firestore y sus writes fallan con permission-denied.
+   * No hay undo desde la app: para volver a entrar necesita un código de
+   * conexión nuevo de otro owner/admin.
+   */
+  async expel(operatorId: string): Promise<void> {
+    await deleteDoc(doc(this.runtime.db, this.collectionPath, operatorId));
   }
 
   /**
