@@ -2,11 +2,13 @@
 import { signal, useSignalEffect } from '@preact/signals';
 import { doc, getDoc } from 'firebase/firestore';
 import { bootstrapFirebase } from '@infra/firebase-bootstrap';
+import { isNetworkError, isPermissionDenied } from '@infra/errors';
 import { OperatorRepository } from '@infra/operator-repository';
 import { Vault } from '@infra/vault';
 import { appPhase } from '@ui/appState';
 import { applyTheme, cycleTheme, readStoredTheme, type Theme } from '@ui/theme';
 import type { OperatorRole, OperatorView } from '@core/types';
+import { offline, revokeSessionAndGoHome, sessionRevoked } from './panel/session';
 import { WashRegistrationPage } from './wash/WashRegistrationPage';
 import { CustomersPage } from './customers/CustomersPage';
 import { HistoryPage } from './history/HistoryPage';
@@ -81,12 +83,22 @@ export function AppShell() {
         // la mayoría de las veces (el guard corta con solo leer `rolePublic`).
         // Así la cabecera se pinta antes de que termine la escritura.
         await operatorRepo.migrateLegacyRole();
-      } catch {
+      } catch (err) {
         // El shell se pinta igual: el operador puede registrar lavados aunque la
-        // cabecera no cargue. Un fallo de red no debe dejar la caja cerrada.
-        trouble.value = 'Sin conexión con el servidor';
-        businessName.value = 'Sin conexión';
-        operatorName.value = '—';
+        // cabecera no cargue. Un fallo de red no debe dejar la caja cerrada —
+        // pero una expulsión NO es un fallo de red, y decirle "Sin conexión" al
+        // operador lo manda a revisar el router en vez de pedir un código nuevo.
+        if (isPermissionDenied(err)) {
+          sessionRevoked.value = true;
+        } else if (isNetworkError(err)) {
+          offline.value = true;
+          trouble.value = 'Sin conexión con el servidor';
+          businessName.value = 'Sin conexión';
+          operatorName.value = '—';
+        } else {
+          trouble.value = 'No se pudo abrir la aplicación. Reintentá en un momento.';
+          operatorName.value = '—';
+        }
       }
     };
     void load();
@@ -105,6 +117,28 @@ export function AppShell() {
     applyTheme(next);
     theme.value = next;
   };
+
+  // Acceso revocado: el overlay toma la pantalla. Mismo corte que en el panel:
+  // sin esto, el operador expulsado se queda en la app con su uid muerta y
+  // cualquier request que dispare vuelve a fallar en silencio.
+  if (sessionRevoked.value) {
+    return (
+      <div class={styles.sessionRevokedOverlay} role="alert">
+        <h2 class={styles.sessionRevokedTitle}>Tu acceso ya no está activo</h2>
+        <p class={styles.sessionRevokedText}>
+          Este dispositivo fue desconectado de este espacio de trabajo.
+          Pedile al dueño un nuevo código de conexión para volver a entrar.
+        </p>
+        <button
+          type="button"
+          class={styles.sessionRevokedBtn}
+          onClick={() => { void revokeSessionAndGoHome(); }}
+        >
+          Cerrar sesión en este dispositivo
+        </button>
+      </div>
+    );
+  }
 
   // Ajustes solo existe para owner y admin: el resto del equipo no tiene por qué
   // tocar precios, lavadores ni el PIN del dispositivo. Quién puede cambiar QUÉ

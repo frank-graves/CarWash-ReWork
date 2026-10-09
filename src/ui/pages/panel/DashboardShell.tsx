@@ -10,7 +10,6 @@
 import { signal, useSignalEffect } from '@preact/signals';
 import type { ComponentChild } from 'preact';
 import { doc, getDoc } from 'firebase/firestore';
-import { signOut } from 'firebase/auth';
 import { bootstrapFirebase } from '@infra/firebase-bootstrap';
 import { isNetworkError, isPermissionDenied } from '@infra/errors';
 import { OperatorRepository } from '@infra/operator-repository';
@@ -21,7 +20,7 @@ import { operatorsCache } from '@ui/pages/AppShell';
 import type { OperatorRole } from '@core/types';
 import { HistoryPage } from '@ui/pages/history/HistoryPage';
 import { activeRange, RANGE_OPTIONS } from './range';
-import { offline, sessionRevoked } from './session';
+import { offline, revokeSessionAndGoHome, sessionRevoked } from './session';
 import { ResumenView } from './ResumenView';
 import { ComingSoonView } from './ComingSoonView';
 import styles from './DashboardShell.module.css';
@@ -195,25 +194,11 @@ function subFor(view: View): string {
 }
 
 /**
- * Saca a este dispositivo del espacio de trabajo. Un operador expulsado (o
- * cuyo enrolamiento quedó a medias) tiene una uid anónima que ya no es
- * miembro: ninguna request va a funcionar. La bóveda local se borra primero
- * y la sesión anónima se cierra pase lo que pase; recargar al final deja la
- * app sin workspace, camino al wizard de enrolamiento.
+ * El botón del overlay: wipe + signOut + navegación dura al home. La lógica
+ * vive en session.ts porque la raíz (AppShell) necesita exactamente lo mismo.
  */
 async function forceSignOut(): Promise<void> {
-  try {
-    // 1. La bóveda local (workspaceId + sobre + slots PIN) se va primero.
-    await Vault.wipeDevice();
-  } finally {
-    // 2. Pase lo que pase, la uid anónima se cierra: una uid expulsada viva
-    //    con su bóveda todavía en disco vuelve al mismo permission-denied en
-    //    el próximo arranque. Es lo único que corta el bucle.
-    const rt = await bootstrapFirebase();
-    await signOut(rt.auth);
-  }
-  // 3. Sin bóveda ni uid, la app arranca en el wizard de enrolamiento.
-  window.location.reload();
+  await revokeSessionAndGoHome();
 }
 
 export function DashboardShell() {
