@@ -44,3 +44,5 @@ probe-*.txt
 # cachés
 .vite/
 .firebase/ 
+# Backups locales de rules antes de deploy
+firestore.rules.backup
