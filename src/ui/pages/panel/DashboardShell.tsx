@@ -22,6 +22,8 @@ import { HistoryPage } from '@ui/pages/history/HistoryPage';
 import { activeRange, RANGE_OPTIONS } from './range';
 import { offline, revokeSessionAndGoHome, sessionRevoked } from './session';
 import { ResumenView } from './ResumenView';
+import { PagosView } from './PagosView';
+import { ServiciosView } from './ServiciosView';
 import { ComingSoonView } from './ComingSoonView';
 import styles from './DashboardShell.module.css';
 
@@ -65,8 +67,8 @@ const VIEW_GROUPS: readonly {
     label: 'Métricas',
     items: [
       { id: 'rendimiento', label: 'Rendimiento', comingSoon: true },
-      { id: 'servicios', label: 'Servicios', comingSoon: true },
-      { id: 'pagos', label: 'Pagos', comingSoon: true },
+      { id: 'servicios', label: 'Servicios', comingSoon: false },
+      { id: 'pagos', label: 'Pagos', comingSoon: false },
     ],
   },
   {
@@ -440,7 +442,12 @@ export function DashboardShell() {
               activeRange={activeRange.value}
             />
           )}
-          {activeView.value !== 'resumen' && activeView.value !== 'historial' && (
+          {activeView.value === 'pagos' && <PagosView />}
+          {activeView.value === 'servicios' && <ServiciosView />}
+          {activeView.value !== 'resumen'
+            && activeView.value !== 'historial'
+            && activeView.value !== 'pagos'
+            && activeView.value !== 'servicios' && (
             <ComingSoonView viewId={activeView.value} />
           )}
         </main>

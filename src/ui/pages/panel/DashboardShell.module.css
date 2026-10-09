@@ -1214,3 +1214,164 @@
     padding: var(--space-2) var(--space-3);
   }
 }
+
+/* ============================================================
+   PAGOS — tabla de métodos + mini-donut
+   ============================================================ */
+/* Fila de 4 columnas: método, lavados, ingreso y % del total. Mismo alto y
+   misma línea inferior que .row para que la tabla de pagos no se sienta un
+   componente distinto al del historial. */
+.pagosRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 68px 96px 56px;
+  align-items: center;
+  gap: var(--space-3);
+  height: var(--row-h);
+  padding: 0 var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.pagosRow:last-child {
+  border-bottom: 0;
+}
+
+/* El header reusa el tono mono-uppercase de .headRow, pero con la rejilla de
+   cuatro columnas de .pagosRow: dos formas del mismo encabezado. */
+.pagosRowHead {
+  background: var(--color-surface);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.pagosRowHead > :not(:first-child) {
+  text-align: right;
+}
+
+.donutWrap {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+  justify-content: center;
+}
+
+.donutSvg {
+  flex-shrink: 0;
+}
+
+.donutCenter {
+  text-align: center;
+  font-family: var(--font-mono);
+}
+
+.donutCenter strong {
+  display: block;
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--color-text);
+}
+
+.donutCenter span {
+  display: block;
+  font-size: 10px;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* ============================================================
+   SERVICIOS — matriz vehículo × servicio
+   ============================================================ */
+/* Rejilla con gap de 1px sobre fondo borde: las líneas de la tabla salen del
+   propio gap, sin pintar un borde por celda. */
+.matrix {
+  display: grid;
+  gap: 1px;
+  background: var(--color-border);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  grid-template-columns: minmax(90px, 1.2fr) repeat(7, minmax(0, 1fr));
+}
+
+.matrixHead {
+  background: var(--color-bg);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+  padding: var(--space-2);
+  text-align: center;
+}
+
+/* La esquina del encabezado (columna del vehículo) va a la izquierda, como
+   sus etiquetas. */
+.matrixHead:first-child {
+  text-align: left;
+}
+
+/* display:contents borra la caja de la fila y deja que sus celdas caigan en la
+   rejilla del .matrix: la matriz es una sola grilla, no una grilla de grillas. */
+.matrixRow {
+  display: contents;
+}
+
+.matrixLabel {
+  display: flex;
+  align-items: center;
+  background: var(--color-surface);
+  font-size: 12.5px;
+  font-weight: 550;
+  padding: var(--space-2) var(--space-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.matrixCell {
+  background: var(--color-surface);
+  padding: var(--space-2);
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  display: grid;
+  gap: 2px;
+  place-items: center;
+}
+
+.matrixCellEmpty {
+  background: var(--color-bg);
+  padding: var(--space-2);
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  display: grid;
+  gap: 2px;
+  place-items: center;
+}
+
+.matrixCellMoney {
+  font-size: 10.5px;
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+/* En pantallas angostas las siete columnas de servicio no caben: la matriz
+   scrollea en horizontal en vez de aplastar los números a ilegibles. El
+   min-width se fuerza con los mínimos de columna, no con un ancho fijo. */
+@media (max-width: 860px) {
+  .matrix {
+    overflow-x: auto;
+    grid-template-columns: 120px repeat(7, minmax(74px, 1fr));
+  }
+}
+
+@media (max-width: 639.98px) {
+  .pagosRow {
+    padding: 0 var(--space-2);
+  }
+}
