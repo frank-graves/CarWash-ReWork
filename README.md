@@ -68,6 +68,8 @@ Borrar IndexedDB sella los datos de la nube para siempre, para el operador y tam
 4. El dispositivo nuevo pega el paquete, elige su PIN local, y queda enrolado con la misma Master Key.
 5. El dispositivo enrolado **no tiene frase de recuperación**. Si olvida el PIN, se re-enrola desde otro dispositivo.
 
+**La frase de recuperación no sobrevive al borrado de cookies.** La frase descifra la bóveda local, y la bóveda vive en IndexedDB del dispositivo. Borrar las cookies del navegador borra la bóveda, y con ella el blob que la frase abriría. Para volver a entrar después de eso, un dispositivo ya enrolado (owner o admin) tiene que generar un código de conexión nuevo. El respaldo real del owner es **tener un segundo dispositivo enrolado**, no la frase.
+
 El paquete de conexión no se guarda en ningún sitio: quien lo tenga en el chat, lo tiene. Un invite usado se borra best-effort (si el que se enroló entró como staff, no tiene permiso para borrarlo y queda para que lo limpie un dueño).
 
 ## Despliegue
@@ -89,6 +91,7 @@ pnpm exec firebase deploy --only firestore:rules,hosting
 - **`listAll` de clientes descifra todo en memoria.** Con >500 clientes puede ser lento. Fase 7: paginación.
 - **Import masivo sin idempotencia.** Re-pegar el mismo lote duplica. Fase 7.
 - **`recomputeLoyalty` lee el ledger completo sin paginar.** Aceptable hasta ~200 transacciones por cliente.
+- **La frase de recuperación solo sirve si la bóveda sigue en el dispositivo.** Borrar cookies, formatear o desinstalar la PWA deja la frase sin blanco. El plan de recuperación del owner es tener un segundo dispositivo enrolado como admin/owner, no la frase.
 
 ## Estructura
 

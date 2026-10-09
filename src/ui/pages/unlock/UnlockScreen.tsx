@@ -228,10 +228,14 @@ export function UnlockScreen() {
           <div class={styles.modal} role="dialog" aria-modal="true" aria-label="Sin frase de recuperación">
             <h2 class={styles.modalTitle}>Sin frase de recuperación</h2>
             <p class={styles.modalHint}>
-              Este dispositivo se unió al negocio con un código de conexión, así
-              que no guarda frase de recuperación. Para volver a entrar, pedile
-              a un dueño que te genere un código nuevo desde un dispositivo con
-              acceso.
+              Este dispositivo no tiene una bóveda configurada (se borraron las
+              cookies, se formateó, o nunca se enroló). La frase de recuperación
+              NO sirve en este estado: la frase descifra la bóveda, pero la bóveda
+              ya no está aquí.
+            </p>
+            <p class={styles.modalHint}>
+              Para volver a entrar, pedile a un dueño o admin que te genere un
+              código de conexión desde otro dispositivo con acceso.
             </p>
             <div class={styles.modalActions}>
               <button
@@ -252,6 +256,12 @@ export function UnlockScreen() {
             <h2 class={styles.modalTitle}>Restablecer PIN</h2>
             <p class={styles.modalHint}>
               Escribe las 12 palabras de tu papel, en orden. Da igual mayúsculas, tildes o comas.
+            </p>
+            <p class={styles.modalHint}>
+              Esto restablece el PIN de una bóveda que YA existe en este dispositivo.
+              Si borraste las cookies del navegador, la bóveda también se borró y la
+              frase no va a funcionar: en ese caso, pedile a otro dispositivo enrolado
+              que te genere un código de conexión.
             </p>
             <textarea
               ref={phraseBox}
