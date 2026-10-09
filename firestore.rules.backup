@@ -10,12 +10,9 @@ service cloud.firestore {
     // Solo usuarios autenticados (anónimos incluidos) pueden tocar datos.
     // Un workspace se considera "reclamado" si el usuario autenticado
     // tiene un doc en `workspaces/{id}/operators/{uid}`.
-    // Se exige además un rolePublic válido: un doc de operador con el rol
-    // corrupto o ausente NO debe contar como miembro.
     function isWorkspaceMember(workspaceId) {
       return request.auth != null
-        && exists(/databases/$(database)/documents/workspaces/$(workspaceId)/operators/$(request.auth.uid))
-        && get(/databases/$(database)/documents/workspaces/$(workspaceId)/operators/$(request.auth.uid)).data.rolePublic in ['owner', 'admin', 'staff'];
+        && exists(/databases/$(database)/documents/workspaces/$(workspaceId)/operators/$(request.auth.uid));
     }
 
     match /workspaces/{workspaceId} {
@@ -64,7 +61,6 @@ service cloud.firestore {
                              request.resource.data.keys().hasAny(['inviteId'])
                              && exists(/databases/$(database)/documents/workspaces/$(workspaceId)/invites/$(request.resource.data.inviteId))
                              && get(/databases/$(database)/documents/workspaces/$(workspaceId)/invites/$(request.resource.data.inviteId)).data.targetRole == request.resource.data.rolePublic
-                             && get(/databases/$(database)/documents/workspaces/$(workspaceId)/invites/$(request.resource.data.inviteId)).data.expiresAt > request.time
                            )
                          );
         // El operador activo puede leer su propio doc (backfill v2→v4).
@@ -99,11 +95,7 @@ service cloud.firestore {
             && request.resource.data.diff(resource.data).affectedKeys()
                  .hasOnly(['rolePublic'])
           );
-        // El owner puede expulsar a un operador: es la única mitigación contra una
-        // sesión persistida robada. No puede borrarse a sí mismo (evita lockout).
-        allow delete: if isWorkspaceMember(workspaceId)
-                      && activeOperatorRole() == 'owner'
-                      && operatorId != request.auth.uid;
+        allow delete: if false;
       }
 
       match /invites/{inviteId} {

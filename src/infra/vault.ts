@@ -26,10 +26,11 @@ const VAULT_STORE = 'keys';
 // UI, pero NO contra un atacante con acceso al archivo de IndexedDB
 // (dispositivo robado, backup comprometido). Ese atacante puede hacer
 // brute-force offline contra blobPin sin pasar por la aplicación.
-// A 200k iteraciones y ~50k hashes/segundo en GPU moderna, son ~5 horas
-// por dispositivo. Para un negocio local, aceptable. Si el modelo de
-// amenaza escala (múltiples sucursales con datos sensibles), migrar a
-// WebAuthn con huella o PIN alfanumérico de 8+ caracteres.
+// A 200k iteraciones y ~50k hashes/segundo en GPU moderna, el espacio de
+// 1.000.000 PINs (6 dígitos) se cubre en ~20 segundos. Es decir: el PIN NO
+// protege contra un atacante con acceso físico al blob. Protege contra
+// curiosos ocasionales y contra el olvido de cerrar la app.
+// Mejora pendiente (Fase 7): passphrase alfanumérica o WebAuthn.
 const PBKDF2_ITERATIONS = 200_000;
 const SALT_BYTES = 16;
 const IV_BYTES = 12; // NIST SP 800-38D: 96 bits es el único IV para GCM que no pasa por GHASH

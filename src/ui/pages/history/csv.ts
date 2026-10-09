@@ -1,12 +1,17 @@
 import type { WashTransactionView } from '@core/types';
 import { VEHICLE_LABELS, SERVICE_LABELS } from '@ui/pages/wash/vehicleLabels';
 
+// Excel y Sheets ejecutan como fórmula cualquier celda que empiece con estos
+// caracteres. Anteponer una comilla simple fuerza texto sin alterar lo que se ve.
+const DANGEROUS_PREFIXES = ['=', '+', '-', '@'];
+
 function escapeCsvField(field: string | number | boolean): string {
   const str = String(field);
-  if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
-    return `"${str.replace(/"/g, '""')}"`;
+  const guarded = DANGEROUS_PREFIXES.some((p) => str.startsWith(p)) ? `'${str}` : str;
+  if (guarded.includes(',') || guarded.includes('"') || guarded.includes('\n') || guarded.includes('\r')) {
+    return `"${guarded.replace(/"/g, '""')}"`;
   }
-  return str;
+  return guarded;
 }
 
 function formatDate(date: Date): string {

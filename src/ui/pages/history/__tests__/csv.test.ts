@@ -43,4 +43,11 @@ describe('transactionsToCsv', () => {
     ]);
     expect(csv).toContain('Gisela / Luis');
   });
+
+  it('neutraliza una fórmula inyectada en una celda', () => {
+    const csv = transactionsToCsv([
+      { ...mockTx, customerName: '=HYPERLINK(...)' },
+    ]);
+    expect(csv).toContain("'=HYPERLINK(...)");
+  });
 });
