@@ -216,10 +216,15 @@ export function ServiciosView() {
           <span class={styles.cardHint}>vehículo × servicio</span>
         </header>
         <div class={styles.cardBody}>
-          <DemandMatrix
-            vehicles={stats.value.vehiclesByRevenue}
-            cells={stats.value.cells}
-          />
+          {/* El scroll vive en el wrapper, no en el grid: un grid con fr
+              comprime las columnas antes que desbordar, así que necesita un
+              padre que reclame el ancho mínimo (min-width en ≤860px). */}
+          <div class={styles.matrixScroll}>
+            <DemandMatrix
+              vehicles={stats.value.vehiclesByRevenue}
+              cells={stats.value.cells}
+            />
+          </div>
         </div>
       </section>
 

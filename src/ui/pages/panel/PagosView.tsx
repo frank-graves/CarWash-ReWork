@@ -109,6 +109,15 @@ export function PagosView() {
     };
   });
 
+  // Ticket promedio por canal: se deriva acá y no en el useComputed porque
+  // solo lo consume una card; el guard de división por cero es idéntico al
+  // del total.
+  const yapeCount = pagos.value.yape.washes;
+  const cashCount = pagos.value.efectivo.washes;
+  const yapeAvg = yapeCount > 0 ? pagos.value.yape.revenue / yapeCount : 0;
+  const cashAvg = cashCount > 0 ? pagos.value.efectivo.revenue / cashCount : 0;
+  const comparison = compareTickets(yapeAvg, cashAvg, yapeCount, cashCount);
+
   return (
     <div class={`${styles.panel} ${styles.rowsKpi}`}>
       <section class={styles.kpis} aria-label="Indicadores de cobranza del rango activo">
@@ -174,24 +183,22 @@ export function PagosView() {
 
       <section class={styles.card}>
         <header class={styles.cardHead}>
-          <h2 class={styles.cardTitle}>Por método</h2>
-          <span class={styles.cardHint}>S/ {soles(pagos.value.total)}</span>
+          <h2 class={styles.cardTitle}>Ticket promedio por método</h2>
+          <span class={styles.cardHint}>S/ por lavado</span>
         </header>
-        <div class={styles.cardBody}>
-          <div class={styles.hbars}>
-            <MethodBar
-              label={METHOD_LABELS.efectivo}
-              stat={pagos.value.efectivo}
-              ceiling={methodCeiling(pagos.value.efectivo, pagos.value.yape)}
-            />
-            <MethodBar
-              label={METHOD_LABELS.yape}
-              stat={pagos.value.yape}
-              ceiling={methodCeiling(pagos.value.efectivo, pagos.value.yape)}
-              fill={styles.hbarFillInfo}
-            />
+        <div class={styles.ticketGrid}>
+          <div class={`${styles.ticketCell} ${styles.ticketCellAccent}`}>
+            <span class={styles.ticketLabel}>Yape</span>
+            <span class={styles.ticketValue}>S/ {yapeAvg.toFixed(2)}</span>
+            <span class={styles.ticketFoot}>{yapeCount} lavados</span>
+          </div>
+          <div class={`${styles.ticketCell} ${styles.ticketCellMuted}`}>
+            <span class={styles.ticketLabel}>Efectivo</span>
+            <span class={styles.ticketValue}>S/ {cashAvg.toFixed(2)}</span>
+            <span class={styles.ticketFoot}>{cashCount} lavados</span>
           </div>
         </div>
+        <p class={styles.ticketNote}>{comparison}</p>
       </section>
     </div>
   );
@@ -199,32 +206,23 @@ export function PagosView() {
 
 // ─── Subcomponentes ─────────────────────────────────────────────────────
 
-function methodCeiling(a: MethodStat, b: MethodStat): number {
-  return Math.max(a.revenue, b.revenue, 0);
-}
-
-function MethodBar({ label, stat, ceiling, fill }: {
-  label: string;
-  stat: MethodStat;
-  ceiling: number;
-  fill?: string | undefined;
-}) {
-  const percent = ceiling > 0 ? Math.round((stat.revenue / ceiling) * 100) : 0;
-
-  return (
-    <div class={styles.hbar}>
-      <div class={styles.hbarTop}>
-        <span>{label}</span>
-        <span>S/ {soles(stat.revenue)} · {stat.washes} lavados</span>
-      </div>
-      <div class={styles.hbarTrack}>
-        <span
-          class={fill ? `${styles.hbarFill} ${fill}` : styles.hbarFill}
-          style={{ width: `${percent}%` }}
-        />
-      </div>
-    </div>
-  );
+// La comparación solo tiene sentido con los dos canales poblados: con uno
+// vacío, "Yape cobra más" mediría contra la nada. El umbral de 50 céntimos
+// separa una diferencia real de ruido de redondeo.
+function compareTickets(
+  yapeAvg: number,
+  cashAvg: number,
+  yapeCount: number,
+  cashCount: number,
+): string {
+  if (yapeCount === 0 || cashCount === 0) {
+    const missing = yapeCount === 0 ? 'Yape' : 'Efectivo';
+    return `Sin datos de ${missing} en este rango`;
+  }
+  const diff = yapeAvg - cashAvg;
+  if (diff > 0.5) return `Yape cobra S/ ${diff.toFixed(2)} más por lavado`;
+  if (diff < -0.5) return `Yape cobra S/ ${Math.abs(diff).toFixed(2)} menos por lavado`;
+  return 'Tickets parecidos entre métodos';
 }
 
 // Donut de dos <circle>: el de abajo es el aro completo (el "resto") y el de
