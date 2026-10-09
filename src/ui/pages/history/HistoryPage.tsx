@@ -120,7 +120,9 @@ export function HistoryPage({ viewerRole = 'staff', recentLimit = 200 }: Props) 
   const washerNames = useComputed(() => {
     const seen = new Set<string>();
     for (const tx of transactions.value) {
-      if (tx.washerName.trim()) seen.add(tx.washerName);
+      for (const name of tx.washerNames) {
+        if (name.trim()) seen.add(name);
+      }
     }
     return Array.from(seen).sort((a, b) => a.localeCompare(b));
   });
@@ -138,7 +140,7 @@ export function HistoryPage({ viewerRole = 'staff', recentLimit = 200 }: Props) 
         return false;
       }
 
-      if (wantedWasher !== 'all' && tx.washerName !== wantedWasher) {
+      if (wantedWasher !== 'all' && !tx.washerNames.includes(wantedWasher)) {
         return false;
       }
 

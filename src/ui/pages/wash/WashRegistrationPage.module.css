@@ -66,11 +66,11 @@
   box-shadow: 0 4px 6px rgb(var(--color-accent-rgb) / 0.2);
 }
 
-.inputCost, .select {
+.inputCost {
   width: 100%; padding: var(--space-3); background: var(--color-surface); border: 1px solid var(--color-border);
   border-radius: var(--radius-md); color: var(--color-text); font-size: 1.125rem;
 }
-.inputCost:focus-visible, .select:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+.inputCost:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
 
 .dateLabel {
   display: flex;
@@ -139,4 +139,36 @@
    entrando dos botones por fila incluso en un móvil de 320px. */
 @media (max-width: 479.98px) {
   .gridButtons { grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); }
+}
+
+.washerChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.chip {
+  padding: var(--space-2) var(--space-3);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    color var(--duration-fast) var(--ease-out-expo),
+    border-color var(--duration-fast) var(--ease-out-expo),
+    background var(--duration-fast) var(--ease-out-expo);
+}
+
+.chip:hover {
+  border-color: var(--color-border-strong);
+  color: var(--color-text);
+}
+
+.chipActive {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #ffffff;
 }

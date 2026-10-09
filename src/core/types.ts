@@ -60,10 +60,10 @@ export interface WashTransactionDocument {
   paidWith: PaymentMethod;
   registeredById: string;
   registeredByName: string;
-  washerId: string;
-  washerName: string;
+  washerIds: string[];      // v3: N lavadores por lavada
+  washerNames: string[];    // motos: 1 sola persona; autos/SUV: 1-3
   createdAt: Timestamp;
-  schemaVersion: 2;  // bump: se reemplazan operatorId/operatorName
+  schemaVersion: 3;
 }
 
 export interface OperatorDocument {
@@ -104,7 +104,7 @@ export interface WashTransactionView {
   wasFree: boolean;
   paidWith: PaymentMethod;
   registeredByName: string;
-  washerName: string;
+  washerNames: string[];
   createdAt: Date;
 }
 

@@ -8,11 +8,15 @@ interface Props {
   serviceTier: ServiceTier;
   cost: number;
   wasFree: boolean;
+  washers: { id: string; name: string }[];
   onClose: () => void;
 }
 
-export function ReceiptModal({ customer, vehicleKind, serviceTier, cost, wasFree, onClose }: Props) {
-  const msg = `Recibo de Lavado\nCliente: ${customer.displayName}\nPlaca: ${customer.plate}\nVehículo: ${VEHICLE_LABELS[vehicleKind]}\nServicio: ${SERVICE_LABELS[serviceTier]}\nCosto: S/ ${cost.toFixed(2)}\n${wasFree ? '¡Lavado Gratis por Lealtad!' : ''}`;
+export function ReceiptModal({ customer, vehicleKind, serviceTier, cost, wasFree, washers, onClose }: Props) {
+  const washersLine = washers.length > 0
+    ? `\nLavadores: ${washers.map((w) => w.name).join(' / ')}`
+    : '';
+  const msg = `Recibo de Lavado\nCliente: ${customer.displayName}\nPlaca: ${customer.plate}\nVehículo: ${VEHICLE_LABELS[vehicleKind]}\nServicio: ${SERVICE_LABELS[serviceTier]}\nCosto: S/ ${cost.toFixed(2)}\n${wasFree ? '¡Lavado Gratis por Lealtad!' : ''}${washersLine}`;
   const waUrl = `https://wa.me/?text=${encodeURIComponent(msg)}`;
 
   return (
@@ -29,6 +33,12 @@ export function ReceiptModal({ customer, vehicleKind, serviceTier, cost, wasFree
             <span>Costo:</span>
             <strong>{wasFree ? 'GRATIS 🎉' : `S/ ${cost.toFixed(2)}`}</strong>
           </div>
+          {washers.length > 0 && (
+            <div class={styles.row}>
+              <span>Lavadores:</span>
+              <strong>{washers.map((w) => w.name).join(' / ')}</strong>
+            </div>
+          )}
         </div>
 
         {wasFree && (

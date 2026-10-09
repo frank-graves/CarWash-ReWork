@@ -99,7 +99,7 @@ export function ImportModal({ runtime, workspaceId, onClose, onImported }: Props
             // El JSON no trae lavador ni operador: el histórico se firma como lo
             // que es, y el registro queda atribuido a quien corrió la importación.
             registeredBy: { id: importedById, name: 'Importación' },
-            washer: { id: 'imported', name: 'Histórico' },
+            washers: [{ id: 'imported', name: 'Histórico' }],
             transactionDate: entry.date,
           });
           imported += 1;

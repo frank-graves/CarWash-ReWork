@@ -39,7 +39,7 @@ export interface RecordWashInput {
 	wasFree: boolean;
 	paidWith: PaymentMethod;
 	registeredBy: { id: string; name: string };
-	washer: { id: string; name: string };
+	washers: Array<{ id: string; name: string }>;
 	/**
 	 * Fecha del lavado. Si es undefined o es hoy, se usa serverTimestamp()
 	 * (evita desajustes de reloj entre dispositivos). Si es una fecha pasada,
@@ -60,8 +60,10 @@ interface LegacyTransactionFields {
 // fallback sea alcanzable también para el compilador: TS marca como inalcanzable
 // un `??` cuyo operando izquierdo es un campo obligatorio.
 type StoredTransaction =
-  Partial<Pick<WashTransactionDocument, "registeredByName" | "washerName">> &
-  LegacyTransactionFields;
+  Partial<Pick<WashTransactionDocument, "registeredByName" | "washerNames">> &
+  LegacyTransactionFields & {
+    washerName?: string;   // v2 legacy: string, no array
+  };
 
 // Mismo día según el calendario UTC. Se compara lo que devuelve el input (fecha
 // local del operador) contra el instante actual: a las 23:00 en un huso muy
@@ -88,6 +90,10 @@ export class TransactionRepository {
 	}
 
 	async record(input: RecordWashInput): Promise<string> {
+		if (input.washers.length === 0) {
+			throw new Error("Falta al menos un lavador");
+		}
+
 		const key = SessionKeyManager.getKey();
 
 		const now = new Date();
@@ -170,9 +176,9 @@ export class TransactionRepository {
 				paidWith: input.paidWith,
 				registeredById: input.registeredBy.id,
 				registeredByName: input.registeredBy.name,
-				washerId: input.washer.id,
-				washerName: input.washer.name,
-				schemaVersion: 2,
+				washerIds: input.washers.map((w) => w.id),
+				washerNames: input.washers.map((w) => w.name),
+				schemaVersion: 3,
 			};
 
 			tx.set(txRef, {
@@ -265,7 +271,17 @@ export class TransactionRepository {
 		// "Desconocido" en las dos columnas.
 		const stored = docData as StoredTransaction;
 		const registeredByName = stored.registeredByName ?? stored.operatorName ?? "Desconocido";
-		const washerName = stored.washerName ?? stored.operatorName ?? "Desconocido";
+
+		// v3 → washerNames (array) · v2 → washerName (string) · v1 → operatorName.
+		// ponytail: v1 no distinguía quién lavaba de quién registraba; cae al
+		// operatorName y miente. Si aparecen docs v1 reales, migrar a mano.
+		const washerNames = Array.isArray(stored.washerNames)
+			? stored.washerNames
+			: stored.washerName
+				? [stored.washerName]
+				: stored.operatorName
+					? [stored.operatorName]
+					: [];
 
 		return {
 			transactionId: docData.transactionId,
@@ -278,7 +294,7 @@ export class TransactionRepository {
 			wasFree: docData.wasFree,
 			paidWith: docData.paidWith,
 			registeredByName,
-			washerName,
+			washerNames,
 			createdAt,
 		};
 	}

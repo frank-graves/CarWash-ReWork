@@ -13,7 +13,7 @@ const mockTx: WashTransactionView = {
   wasFree: false,
   paidWith: 'yape',
   registeredByName: 'Carlos',
-  washerName: 'Miguel',
+  washerNames: ['Miguel'],
   createdAt: new Date('2026-09-10T10:30:00Z'),
 };
 
@@ -35,5 +35,12 @@ describe('transactionsToCsv', () => {
     expect(csv).toContain('No');
     // El esquema 2 separa lavador de operador: la columna "Lavador" lleva al lavador.
     expect(csv).toContain('Miguel');
+  });
+
+  it('une varios lavadores con " / "', () => {
+    const csv = transactionsToCsv([
+      { ...mockTx, washerNames: ['Gisela', 'Luis'] },
+    ]);
+    expect(csv).toContain('Gisela / Luis');
   });
 });

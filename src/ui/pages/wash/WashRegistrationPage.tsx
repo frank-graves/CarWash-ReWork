@@ -55,7 +55,7 @@ export function WashRegistrationPage() {
   const tier = useSignal<ServiceTier | null>(null);
   const cost = useSignal(0);
   const operatorId = useSignal<string | null>(null);
-  const washerId = useSignal<string | null>(null);
+  const washerIds = useSignal<string[]>([]);
   const payment = useSignal<PaymentMethod | null>(null);
 
   // Fecha del lavado. Por defecto hoy. El operador solo la cambia cuando
@@ -71,7 +71,12 @@ export function WashRegistrationPage() {
   // Los nombres del snapshot tienen que coincidir con las props de ReceiptModal:
   // un `vehicle`/`tier` desalineado compila en el spread y pinta "undefined" en el recibo.
   const receiptData = useSignal<{
-    customer: CustomerView; vehicleKind: VehicleKind; serviceTier: ServiceTier; cost: number; wasFree: boolean;
+    customer: CustomerView;
+    vehicleKind: VehicleKind;
+    serviceTier: ServiceTier;
+    cost: number;
+    wasFree: boolean;
+    washers: { id: string; name: string }[];
   } | null>(null);
 
   useSignalEffect(() => {
@@ -123,7 +128,7 @@ export function WashRegistrationPage() {
   };
 
   // El lavador no vive en WashFormState (es lógica pura ya testeada); se exige aquí.
-  const canSubmit = isFormComplete(state) && washerId.value !== null && !submitting.value;
+  const canSubmit = isFormComplete(state) && washerIds.value.length > 0 && !submitting.value;
   const freeWash = isFreeWash(state);
 
   const handleSubmit = async () => {
@@ -134,7 +139,7 @@ export function WashRegistrationPage() {
     const pickedTier = tier.value;
     const pickedPayment = payment.value;
     const pickedOperatorId = operatorId.value;
-    const pickedWasherId = washerId.value;
+    const pickedWasherIds = washerIds.value;
     const transactionDateValue = parseDateInput(transactionDate.value);
 
     if (
@@ -146,7 +151,7 @@ export function WashRegistrationPage() {
       !pickedTier ||
       !pickedPayment ||
       !pickedOperatorId ||
-      !pickedWasherId
+      pickedWasherIds.length === 0
     ) {
       return;
     }
@@ -156,9 +161,12 @@ export function WashRegistrationPage() {
     
     try {
       const operator = operators.value.find(o => o.id === pickedOperatorId);
-      const washer = washers.value.find(w => w.id === pickedWasherId);
+      const pickedWashers = pickedWasherIds.map((id) => {
+        const found = washers.value.find((x) => x.id === id);
+        return { id, name: found?.displayName ?? 'Desconocido' };
+      });
       const repo = new TransactionRepository(rt, ws);
-      
+
       await repo.record({
         customer: pickedCustomer,
         vehicleKind: pickedVehicle,
@@ -167,7 +175,7 @@ export function WashRegistrationPage() {
         wasFree: freeWash,
         paidWith: pickedPayment,
         registeredBy: { id: pickedOperatorId, name: operator?.displayName ?? 'Desconocido' },
-        washer: { id: pickedWasherId, name: washer?.displayName ?? 'Desconocido' },
+        washers: pickedWashers,
         transactionDate: transactionDateValue,
       });
 
@@ -177,10 +185,11 @@ export function WashRegistrationPage() {
         serviceTier: pickedTier,
         cost: cost.value,
         wasFree: freeWash,
+        washers: pickedWashers,
       };
 
-      // Reset para el siguiente cliente. El lavador se queda: quien lava el próximo
-      // auto suele ser el mismo, y volver a elegirlo es un toque de más por coche.
+      // Reset para el siguiente cliente. Los lavadores NO se heredan: el equipo
+      // puede cambiar de un auto al otro y elegir de nuevo es un toque barato.
       customer.value = null;
       vehicle.value = null;
       tier.value = null;
@@ -188,6 +197,7 @@ export function WashRegistrationPage() {
       payment.value = null;
       operatorId.value = activeOperatorId.value;
       transactionDate.value = toDateInputValue(new Date());
+      washerIds.value = [];
     } catch (e) {
       error.value = translateError(e);
     } finally {
@@ -295,19 +305,33 @@ export function WashRegistrationPage() {
 
               <section class={styles.section}>
                 <h3 class={styles.sectionTitle}>5. Lavador</h3>
-                <select
-                  class={styles.select}
-                  value={washerId.value ?? ''}
-                  onChange={(e) => { washerId.value = e.currentTarget.value; }}
-                >
-                  <option value="" disabled>Elige quién lavó…</option>
-                  {washers.value.map((w) => (
-                    <option key={w.id} value={w.id}>{w.displayName}</option>
-                  ))}
-                </select>
+                <div class={styles.washerChips}>
+                  {washers.value.map((w) => {
+                    const selected = washerIds.value.includes(w.id);
+                    return (
+                      <button
+                        key={w.id}
+                        type="button"
+                        class={selected ? `${styles.chip} ${styles.chipActive}` : styles.chip}
+                        onClick={() => {
+                          washerIds.value = selected
+                            ? washerIds.value.filter((id) => id !== w.id)
+                            : [...washerIds.value, w.id];
+                        }}
+                      >
+                        {w.displayName}
+                      </button>
+                    );
+                  })}
+                </div>
                 {washers.value.length === 0 && (
                   <p class={styles.hint}>
                     Todavía no hay lavadores registrados en este negocio.
+                  </p>
+                )}
+                {washers.value.length > 0 && (
+                  <p class={styles.hint}>
+                    Tocá uno o más si el lavado lo hicieron entre varios.
                   </p>
                 )}
               </section>

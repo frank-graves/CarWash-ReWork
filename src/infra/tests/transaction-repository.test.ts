@@ -2,6 +2,7 @@
 import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
 import { TransactionRepository } from '@infra/transaction-repository';
 import { SessionKeyManager } from '@infra/session-key';
+import { PrivacyVault } from '@infra/crypto';
 import type { RecordWashInput } from '@infra/transaction-repository';
 import type { CustomerView } from '@core/types';
 import type { FirebaseRuntime } from '@infra/firebase-bootstrap';
@@ -164,7 +165,7 @@ describe('TransactionRepository', () => {
     wasFree: false,
     paidWith: 'efectivo',
     registeredBy: { id: 'op-001', name: 'Carlos' },
-    washer: { id: 'wash-001', name: 'Miguel' },
+    washers: [{ id: 'wash-001', name: 'Miguel' }],
   };
 
   it('record con wasFree: false retorna transactionId', async () => {
@@ -186,7 +187,7 @@ describe('TransactionRepository', () => {
     expect(recent[0]?.customerName).toBe('Juan Pérez');
     // El esquema 2 separa quién registra de quién lava, y el ledger conserva ambos.
     expect(recent[0]?.registeredByName).toBe('Carlos');
-    expect(recent[0]?.washerName).toBe('Miguel');
+    expect(recent[0]?.washerNames).toEqual(['Miguel']);
   });
 
   it('annul borra la transacción del ledger', async () => {
@@ -204,5 +205,83 @@ describe('TransactionRepository', () => {
         `workspaces/${workspaceId}/transactions/${txId}`,
       ),
     ).toBe(false);
+  });
+
+  it('record con washers: [] tira error', async () => {
+    await expect(repo.record({ ...baseInput, washers: [] }))
+      .rejects.toThrow('Falta al menos un lavador');
+  });
+
+  it('record con 2 washers guarda dos ids y dos nombres', async () => {
+    const txId = await repo.record({
+      ...baseInput,
+      washers: [
+        { id: 'w1', name: 'Gisela' },
+        { id: 'w2', name: 'Luis' },
+      ],
+    });
+    const stored = __mockStores.transactions.get(
+      `workspaces/${workspaceId}/transactions/${txId}`,
+    );
+    expect(stored.washerIds).toEqual(['w1', 'w2']);
+    expect(stored.washerNames).toEqual(['Gisela', 'Luis']);
+  });
+
+  it('v2 → v3: lee washerName (string) y lo expone como array', async () => {
+    // El snapshot legacy va cifrado en producción; el mock descifra de verdad,
+    // así que el doc inyectado tiene que traer un payload real, no un placeholder.
+    const snapshot = await PrivacyVault.encryptPayload(
+      { displayName: mockCustomer.displayName, plate: mockCustomer.plate },
+      SessionKeyManager.getKey(),
+    );
+    __mockStores.transactions.set(
+      `workspaces/${workspaceId}/transactions/tx-v2`,
+      {
+        transactionId: 'tx-v2',
+        customerId: mockCustomer.customerId,
+        customerSnapshot: snapshot,
+        vehicleKind: 'auto',
+        serviceTier: 'basico',
+        cost: 30,
+        wasFree: false,
+        paidWith: 'efectivo',
+        registeredById: 'op-001',
+        registeredByName: 'Carlos',
+        washerId: 'wash-001',
+        washerName: 'Miguel',
+        createdAt: { toDate: () => new Date() },
+        schemaVersion: 2,
+      },
+    );
+    const recent = await repo.listRecent(10);
+    const v2 = recent.find((t) => t.transactionId === 'tx-v2');
+    expect(v2?.washerNames).toEqual(['Miguel']);
+  });
+
+  it('v1 → v3: sin washer, cae al operatorName', async () => {
+    const snapshot = await PrivacyVault.encryptPayload(
+      { displayName: mockCustomer.displayName, plate: mockCustomer.plate },
+      SessionKeyManager.getKey(),
+    );
+    __mockStores.transactions.set(
+      `workspaces/${workspaceId}/transactions/tx-v1`,
+      {
+        transactionId: 'tx-v1',
+        customerId: mockCustomer.customerId,
+        customerSnapshot: snapshot,
+        vehicleKind: 'auto',
+        serviceTier: 'basico',
+        cost: 30,
+        wasFree: false,
+        paidWith: 'efectivo',
+        operatorId: 'op-001',
+        operatorName: 'Carlos',
+        createdAt: { toDate: () => new Date() },
+        schemaVersion: 1,
+      },
+    );
+    const recent = await repo.listRecent(10);
+    const v1 = recent.find((t) => t.transactionId === 'tx-v1');
+    expect(v1?.washerNames).toEqual(['Carlos']);
   });
 });

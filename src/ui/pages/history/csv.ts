@@ -28,7 +28,7 @@ export function transactionsToCsv(transactions: WashTransactionView[]): string {
     tx.customerPlate,
     VEHICLE_LABELS[tx.vehicleKind],
     SERVICE_LABELS[tx.serviceTier],
-    tx.washerName,
+    tx.washerNames.join(' / '),
     tx.paidWith === 'yape' ? 'Yape' : 'Efectivo',
     tx.cost.toFixed(2),
     tx.wasFree ? 'Sí' : 'No'

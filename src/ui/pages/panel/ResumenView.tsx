@@ -263,7 +263,6 @@ export function ResumenView() {
           <span class={styles.kpiLabel}>Nómina est.</span>
           <span class={styles.kpiValue}>S/ {soles(wages.value)}</span>
           <span class={styles.kpiFoot}>sobre {window7.value.washes} lavados</span>
-          {/* ponytail: full_deluxe paga 0 hasta que el dueño defina tarifa. */}
         </div>
       </section>
 
