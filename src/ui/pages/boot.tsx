@@ -55,7 +55,31 @@ function liftSplash(): void {
   else go();
 }
 
+// Aviso de último recurso. HTML crudo a propósito, sin clases ni imports del
+// sistema de diseño: el fallo típico (un chunk que desapareció tras un deploy)
+// significa que los CSS/JS del bundle tampoco están, así que este bloque tiene
+// que verse igual sin ellos.
+function renderBootFallback(root: HTMLElement): void {
+  root.innerHTML =
+    '<div style="padding:2rem;font-family:system-ui;text-align:center">' +
+    '<p>No se pudo abrir la app.</p>' +
+    '<p style="font-size:.875rem;color:#666">Probá recargar. Si el problema sigue, borrá los datos del sitio.</p>' +
+    '<button onclick="location.reload()">Recargar</button>' +
+    '</div>';
+}
+
+// `mountApp` solo blinda el arranque: si algo revienta fuera de los errores ya
+// previstos (bootstrap, bóveda), la pantalla no queda en negro y cae al aviso.
 export async function mountApp(root: HTMLElement, mode: ShellMode = 'staff'): Promise<void> {
+  try {
+    await runBoot(root, mode);
+  } catch {
+    renderBootFallback(root);
+    liftSplash();
+  }
+}
+
+async function runBoot(root: HTMLElement, mode: ShellMode = 'staff'): Promise<void> {
   // El tema guardado se aplica antes del primer render: sin esto, la preferencia
   // del operador solo existiría hasta que recargara, y la tablet arrancaría con el
   // tema del sistema hasta que alguien volviera a tocar el selector.

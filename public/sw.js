@@ -4,7 +4,10 @@
 // cae, los repositorios muestran sus errores como siempre; el shell
 // sigue visible.
 
-const SHELL_CACHE = 'ecw-shell-v1';
+// Subir el sufijo es el fix real de la pantalla negra: el 'activate' borra
+// todo cache que no se llame igual, así que renombrar v1→v2 es lo que purga
+// el index.html viejo que quedó guardado apuntando a chunks ya inexistentes.
+const SHELL_CACHE = 'ecw-shell-v2';
 const SHELL_ASSETS = [
   '/',
   '/manifest.webmanifest',
@@ -42,13 +45,11 @@ self.addEventListener('fetch', (event) => {
   // Solo GET: nada de cachear POST.
   if (request.method !== 'GET') return;
 
-  const isMetadata =
-    url.pathname === '/' ||
-    url.pathname === '/manifest.webmanifest' ||
-    url.pathname === '/icon.svg' ||
-    url.pathname === '/favicon.svg';
-
-  if (isMetadata) {
+  // El HTML de arranque nunca sale del cache si hay red. Es la regla que
+  // evita la pantalla negra: un index.html viejo apunta a chunks que el deploy
+  // nuevo ya borró, el boot 404ea y no hay nada que pintar. El cache queda
+  // solo como red de seguridad cuando la red no está.
+  if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request)
         .then((response) => {
@@ -61,6 +62,24 @@ self.addEventListener('fetch', (event) => {
             .match(request)
             .then((cached) => cached || caches.match('/')),
         ),
+    );
+    return;
+  }
+
+  const isMetadata =
+    url.pathname === '/manifest.webmanifest' ||
+    url.pathname === '/icon.svg' ||
+    url.pathname === '/favicon.svg';
+
+  if (isMetadata) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          const copy = response.clone();
+          caches.open(SHELL_CACHE).then((cache) => cache.put(request, copy));
+          return response;
+        })
+        .catch(() => caches.match(request)),
     );
     return;
   }
