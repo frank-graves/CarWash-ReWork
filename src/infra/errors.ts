@@ -46,3 +46,34 @@ export class InviteExpiredError extends Error {
     this.name = 'InviteExpiredError';
   }
 }
+
+/**
+ * Devuelve true si el error viene de Firestore por permisos insuficientes.
+ * El SDK modular (firebase@^12) lanza un objeto con `code` como string
+ * cuando la request falla por reglas: 'permission-denied'. No es
+ * instancia de una clase específica en todos los entornos (a veces es
+ * FirebaseError, a veces un objeto plano), por eso chequeamos la
+ * propiedad, no el constructor.
+ */
+export function isPermissionDenied(err: unknown): boolean {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    'code' in err &&
+    (err as { code: unknown }).code === 'permission-denied'
+  );
+}
+
+/**
+ * True si el error es de red, no de permisos. Los códigos que Firestore
+ * usa para indicar que la request no llegó al servidor son estos tres.
+ */
+export function isNetworkError(err: unknown): boolean {
+  if (typeof err !== 'object' || err === null || !('code' in err)) return false;
+  const code = (err as { code: unknown }).code;
+  return (
+    code === 'unavailable' ||
+    code === 'deadline-exceeded' ||
+    code === 'network-request-failed'
+  );
+}

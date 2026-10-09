@@ -25,7 +25,7 @@ describe('transactionsToCsv', () => {
 
   it('formats headers correctly', () => {
     const csv = transactionsToCsv([mockTx]);
-    expect(csv).toContain('Fecha,Cliente,Placa,Vehículo,Servicio,Lavador,Pago,Costo,Gratis');
+    expect(csv).toContain('Fecha,Cliente,Placa,Vehículo,Servicio,Lavador(es),Pago,Costo,Gratis');
   });
 
   it('escapes quotes and formats cost without currency symbol', () => {

@@ -5,11 +5,13 @@
 
 import { useComputed, useSignal, useSignalEffect } from '@preact/signals';
 import { bootstrapFirebase, type FirebaseRuntime } from '@infra/firebase-bootstrap';
+import { isNetworkError, isPermissionDenied } from '@infra/errors';
 import { TransactionRepository } from '@infra/transaction-repository';
 import { Vault } from '@infra/vault';
 import type { WashTransactionView } from '@core/types';
 import { calculateWage } from '@core/wages';
 import { activeRange, bucketsFor, bucketIndexOf, rangeStart } from './range';
+import { offline, sessionRevoked } from './session';
 import styles from './DashboardShell.module.css';
 
 // 50 lavados cubren la semana larga de un lavadero de barrio. Con el
@@ -40,8 +42,16 @@ export function ResumenView() {
       try {
         runtime.value = await bootstrapFirebase();
         workspaceId.value = await Vault.getWorkspaceId();
-      } catch {
-        trouble.value = 'No se pudo abrir el resumen. Revisa la conexión.';
+      } catch (err) {
+        // El overlay del shell cubre esta vista, así que acá solo se marcan
+        // los signals: quién pinta el aviso es el shell, no el resumen.
+        if (isPermissionDenied(err)) {
+          sessionRevoked.value = true;
+        } else if (isNetworkError(err)) {
+          offline.value = true;
+        } else {
+          trouble.value = 'No se pudo abrir el resumen. Revisá la conexión.';
+        }
         loading.value = false;
       }
     };

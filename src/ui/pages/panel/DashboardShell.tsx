@@ -10,7 +10,9 @@
 import { signal, useSignalEffect } from '@preact/signals';
 import type { ComponentChild } from 'preact';
 import { doc, getDoc } from 'firebase/firestore';
+import { signOut } from 'firebase/auth';
 import { bootstrapFirebase } from '@infra/firebase-bootstrap';
+import { isNetworkError, isPermissionDenied } from '@infra/errors';
 import { OperatorRepository } from '@infra/operator-repository';
 import { Vault } from '@infra/vault';
 import { appPhase } from '@ui/appState';
@@ -19,6 +21,7 @@ import { operatorsCache } from '@ui/pages/AppShell';
 import type { OperatorRole } from '@core/types';
 import { HistoryPage } from '@ui/pages/history/HistoryPage';
 import { activeRange, RANGE_OPTIONS } from './range';
+import { offline, sessionRevoked } from './session';
 import { ResumenView } from './ResumenView';
 import { ComingSoonView } from './ComingSoonView';
 import styles from './DashboardShell.module.css';
@@ -191,6 +194,28 @@ function subFor(view: View): string {
   return SOON_VIEWS.has(view) ? `${hint} · en desarrollo` : hint;
 }
 
+/**
+ * Saca a este dispositivo del espacio de trabajo. Un operador expulsado (o
+ * cuyo enrolamiento quedó a medias) tiene una uid anónima que ya no es
+ * miembro: ninguna request va a funcionar. La bóveda local se borra primero
+ * y la sesión anónima se cierra pase lo que pase; recargar al final deja la
+ * app sin workspace, camino al wizard de enrolamiento.
+ */
+async function forceSignOut(): Promise<void> {
+  try {
+    // 1. La bóveda local (workspaceId + sobre + slots PIN) se va primero.
+    await Vault.wipeDevice();
+  } finally {
+    // 2. Pase lo que pase, la uid anónima se cierra: una uid expulsada viva
+    //    con su bóveda todavía en disco vuelve al mismo permission-denied en
+    //    el próximo arranque. Es lo único que corta el bucle.
+    const rt = await bootstrapFirebase();
+    await signOut(rt.auth);
+  }
+  // 3. Sin bóveda ni uid, la app arranca en el wizard de enrolamiento.
+  window.location.reload();
+}
+
 export function DashboardShell() {
   useSignalEffect(() => {
     const load = async () => {
@@ -230,10 +255,17 @@ export function DashboardShell() {
           ? (workspace.data() as { name: string }).name
           : 'Exclusivo Car Wash';
         document.title = 'Exclusivo Car Wash — Panel';
-      } catch {
-        // Un fallo de red no debe dejar el panel en blanco sin decir por qué.
-        trouble.value = 'Sin conexión con el servidor';
-        operatorName.value = '—';
+      } catch (err) {
+        // Tres averías distintas y tres mensajes distintos: culpar a la red
+        // de una expulsión manda al operador a revisar el router cuando lo
+        // que tiene que hacer es pedir un código de conexión nuevo.
+        if (isPermissionDenied(err)) {
+          sessionRevoked.value = true;
+        } else if (isNetworkError(err)) {
+          offline.value = true;
+        } else {
+          trouble.value = 'No se pudo abrir el panel. Reintentá en un momento.';
+        }
       }
     };
     void load();
@@ -252,13 +284,37 @@ export function DashboardShell() {
     appPhase.value = 'unlock';
   };
 
+  // Acceso revocado: el overlay tapa todo, incluso el gate. Sin este corte,
+  // un operador expulsado se quedaría en "Verificando acceso…" para siempre,
+  // porque el roster que decide su rol nunca llega (permission-denied antes).
+  if (sessionRevoked.value) {
+    return (
+      <div class={styles.sessionRevokedOverlay} role="alert">
+        <h2 class={styles.sessionRevokedTitle}>Tu acceso ya no está activo</h2>
+        <p class={styles.sessionRevokedText}>
+          Este dispositivo fue desconectado de este espacio de trabajo.
+          Pedile al dueño un nuevo código de conexión para volver a entrar.
+        </p>
+        <button
+          type="button"
+          class={styles.sessionRevokedBtn}
+          onClick={() => { void forceSignOut(); }}
+        >
+          Cerrar sesión en este dispositivo
+        </button>
+      </div>
+    );
+  }
+
   // Nada se pinta hasta saber el rol: un panel a medio construir que después se
   // convierte en un redirect es peor que un segundo de "verificando".
   if (currentRole.value === null) {
     return (
       <div class={styles.gate}>
         <span class={styles.gateMark}>ECW</span>
-        <p class={styles.gateText}>{trouble.value || 'Verificando acceso al panel…'}</p>
+        <p class={styles.gateText}>
+          {trouble.value || (offline.value ? 'Sin conexión con el servidor' : 'Verificando acceso al panel…')}
+        </p>
       </div>
     );
   }
