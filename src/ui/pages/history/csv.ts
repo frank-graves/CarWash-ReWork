@@ -25,7 +25,7 @@ function formatDate(date: Date): string {
 
 export function transactionsToCsv(transactions: WashTransactionView[]): string {
   const BOM = '\uFEFF';
-  const headers = ['Fecha', 'Cliente', 'Placa', 'Vehículo', 'Servicio', 'Lavador', 'Pago', 'Costo', 'Gratis'];
+  const headers = ['Fecha', 'Cliente', 'Placa', 'Vehículo', 'Servicio', 'Lavador(es)', 'Pago', 'Costo', 'Gratis'];
   
   const rows = transactions.map(tx => [
     formatDate(tx.createdAt),

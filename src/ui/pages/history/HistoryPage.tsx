@@ -4,6 +4,7 @@ import { CustomerRepository } from '@infra/customer-repository';
 import { TransactionRepository } from '@infra/transaction-repository';
 import { Vault } from '@infra/vault';
 import { translateError } from '@ui/i18n/es';
+import { rangeStart } from '@ui/pages/panel/range';
 import type { OperatorRole, PaymentMethod, WashTransactionView } from '@core/types';
 import { SERVICE_LABELS, VEHICLE_LABELS } from '../wash/vehicleLabels';
 import { ExportButton } from './ExportButton';
@@ -71,9 +72,11 @@ interface Props {
    * que pide menos y paga menos lecturas. Mismo componente, dos presupuestos.
    */
   recentLimit?: number;
+  /** Rango global del panel. Si viene, ignora los chips internos. */
+  activeRange?: import('@ui/pages/panel/range').Range;
 }
 
-export function HistoryPage({ viewerRole = 'staff', recentLimit = 200 }: Props) {
+export function HistoryPage({ viewerRole = 'staff', recentLimit = 200, activeRange }: Props) {
   const runtime = useSignal<FirebaseRuntime | null>(null);
   const workspaceId = useSignal<string | null>(null);
   const transactions = useSignal<WashTransactionView[]>([]);
@@ -83,6 +86,10 @@ export function HistoryPage({ viewerRole = 'staff', recentLimit = 200 }: Props) 
   const canAnnul = viewerRole === 'owner' || viewerRole === 'admin';
 
   const dateRange = useSignal<DateRange>('all');
+
+  // Si el panel nos pasa el rango, lo aplicamos. Sino, seguimos con los
+  // chips internos del mostrador.
+  const effectiveRange = activeRange;
   const customerFilter = useSignal('');
   const washerFilter = useSignal('all');
   const paymentFilter = useSignal<PaymentFilter>('all');
@@ -134,7 +141,14 @@ export function HistoryPage({ viewerRole = 'staff', recentLimit = 200 }: Props) 
     const wantedRange = dateRange.value;
 
     return transactions.value.filter((tx) => {
-      if (!insideRange(tx.createdAt, wantedRange)) return false;
+      // El panel manda un rango global; el mostrador usa sus chips locales.
+      // Dos controles de fecha contradictorios en la misma vista serían peores
+      // que uno: si viene rango externo, los chips ni se pintan.
+      if (effectiveRange !== undefined) {
+        if (tx.createdAt.getTime() < rangeStart(effectiveRange)) return false;
+      } else if (!insideRange(tx.createdAt, wantedRange)) {
+        return false;
+      }
 
       if (plateNeedle && !normalizeNeedle(tx.customerPlate).includes(plateNeedle)) {
         return false;
@@ -205,18 +219,20 @@ export function HistoryPage({ viewerRole = 'staff', recentLimit = 200 }: Props) 
     <div class={styles.container}>
       <header class={styles.header}>
         <div class={styles.filterDeck} aria-label="Filtros de historial">
-          <div class={styles.chipRail} aria-label="Rango de fechas">
-            {DATE_CHIPS.map((chip) => (
-              <button
-                key={chip.id}
-                type="button"
-                class={dateRange.value === chip.id ? `${styles.chip} ${styles.chipActive}` : styles.chip}
-                onClick={() => selectRange(chip.id)}
-              >
-                {chip.label}
-              </button>
-            ))}
-          </div>
+          {activeRange === undefined && (
+            <div class={styles.chipRail} aria-label="Rango de fechas">
+              {DATE_CHIPS.map((chip) => (
+                <button
+                  key={chip.id}
+                  type="button"
+                  class={dateRange.value === chip.id ? `${styles.chip} ${styles.chipActive}` : styles.chip}
+                  onClick={() => selectRange(chip.id)}
+                >
+                  {chip.label}
+                </button>
+              ))}
+            </div>
+          )}
 
           <label class={styles.field}>
             <span class={styles.fieldLabel}>Cliente</span>

@@ -18,6 +18,7 @@ import { applyTheme, cycleTheme, readStoredTheme, type Theme } from '@ui/theme';
 import { operatorsCache } from '@ui/pages/AppShell';
 import type { OperatorRole } from '@core/types';
 import { HistoryPage } from '@ui/pages/history/HistoryPage';
+import { activeRange, RANGE_OPTIONS } from './range';
 import { ResumenView } from './ResumenView';
 import { ComingSoonView } from './ComingSoonView';
 import styles from './DashboardShell.module.css';
@@ -352,6 +353,26 @@ export function DashboardShell() {
             <span class={styles.topbarTitle}>{VIEW_TITLES[activeView.value]}</span>
             <span class={styles.topbarSub}>{subFor(activeView.value)}</span>
           </div>
+
+          <div class={styles.rangeRail} role="radiogroup" aria-label="Rango temporal">
+            {RANGE_OPTIONS.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                role="radio"
+                aria-checked={activeRange.value === option.id}
+                class={
+                  activeRange.value === option.id
+                    ? `${styles.rangeBtn} ${styles.rangeBtnActive}`
+                    : styles.rangeBtn
+                }
+                onClick={() => { activeRange.value = option.id; }}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+
           <div class={styles.topbarActions}>
             <button
               type="button"
@@ -372,7 +393,11 @@ export function DashboardShell() {
         <main class={styles.content}>
           {activeView.value === 'resumen' && <ResumenView />}
           {activeView.value === 'historial' && (
-            <HistoryPage viewerRole={role} recentLimit={RECENT_LIMIT} />
+            <HistoryPage
+              viewerRole={role}
+              recentLimit={RECENT_LIMIT}
+              activeRange={activeRange.value}
+            />
           )}
           {activeView.value !== 'resumen' && activeView.value !== 'historial' && (
             <ComingSoonView viewId={activeView.value} />
