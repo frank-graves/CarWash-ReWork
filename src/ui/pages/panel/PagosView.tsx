@@ -1,8 +1,10 @@
 // src/ui/pages/panel/PagosView.tsx
 // La foto de cobranza del rango activo: cuánto entró, por qué canal y cuánto
 // pesa cada uno. La única pregunta que se hace acá es "¿Yape le está comiendo
-// el efectivo?", así que el donut y las barras giran alrededor de la misma
-// proporción y el rango global (topbar del shell) manda.
+// el efectivo?", así que la barra apilada, la tabla y el gráfico de evolución
+// giran alrededor de la misma proporción y el rango global (topbar del shell)
+// manda. El donut que había antes se fue: la barra apilada dice lo mismo con
+// menos tinta.
 
 import { useComputed, useSignal, useSignalEffect } from '@preact/signals';
 import { bootstrapFirebase, type FirebaseRuntime } from '@infra/firebase-bootstrap';
@@ -10,7 +12,7 @@ import { isNetworkError, isPermissionDenied } from '@infra/errors';
 import { TransactionRepository } from '@infra/transaction-repository';
 import { Vault } from '@infra/vault';
 import type { PaymentMethod, WashTransactionView } from '@core/types';
-import { activeRange, rangeStart } from './range';
+import { activeRange, bucketIndexOf, bucketsFor, rangeStart, type Bucket } from './range';
 import { offline, sessionRevoked } from './session';
 import styles from './DashboardShell.module.css';
 
@@ -18,11 +20,12 @@ import styles from './DashboardShell.module.css';
 // igual, pero para el rango por defecto (semana) sobra.
 const RECENT_LIMIT = 50;
 
-// El dasharray del donut se calcula sobre la circunferencia real del anillo:
-// 2πr con el mismo radio que el <circle>. Repetirlo en cada render invita a
-// que el SVG y la matemática se desincronicen.
-const DONUT_RADIUS = 48;
-const DONUT_CIRCUMFERENCE = 2 * Math.PI * DONUT_RADIUS;
+// Debajo de 12% un segmento de la barra no tiene sitio para su etiqueta; la
+// proporción igual se lee en la tabla de abajo.
+const LABEL_MIN_PCT = 12;
+
+// Umbral de "datos suficientes" para atreverse a concluir algo del reparto.
+const INSIGHT_MIN_WASHES = 10;
 
 const METHOD_LABELS: Record<PaymentMethod, string> = {
   efectivo: 'Efectivo',
@@ -37,6 +40,12 @@ function soles(amount: number): string {
 interface MethodStat {
   revenue: number;
   washes: number;
+}
+
+/** Lo que entró por cada canal dentro de un bucket: la serie de la evolución. */
+interface BucketSeries {
+  efectivo: number;
+  yape: number;
 }
 
 export function PagosView() {
@@ -80,8 +89,12 @@ export function PagosView() {
 
   // El reparto por canal depende del rango: useComputed re-evalúa solo cuando
   // activeRange o el ledger cambian, sin que la vista tenga que escuchar nada.
+  // Los totales y la serie de buckets salen de la misma pasada: recorrer el
+  // ledger dos veces para armar el gráfico sería trabajo regalado.
   const pagos = useComputed(() => {
     const since = rangeStart(activeRange.value);
+    const buckets = bucketsFor(activeRange.value);
+    const series: BucketSeries[] = buckets.map(() => ({ efectivo: 0, yape: 0 }));
     const efectivo: MethodStat = { revenue: 0, washes: 0 };
     const yape: MethodStat = { revenue: 0, washes: 0 };
     let total = 0;
@@ -89,116 +102,100 @@ export function PagosView() {
 
     for (const tx of ledger.value) {
       if (tx.createdAt.getTime() < since) continue;
-      // Un lavado de cortesía no pasó por caja: contarlo acá inflaría el ticket
-      // promedio con plata que nunca entró.
+      // Un lavado de cortesía no pasó por caja: contarlo acá inflaría el
+      // reparto con plata que nunca entró.
       if (tx.wasFree) continue;
       const stat = tx.paidWith === 'yape' ? yape : efectivo;
       stat.revenue += tx.cost;
       stat.washes += 1;
       total += tx.cost;
       paidWashes += 1;
+
+      const slot = series[bucketIndexOf(buckets, tx.createdAt.getTime())];
+      if (slot) slot[tx.paidWith] += tx.cost;
     }
 
-    return {
-      efectivo,
-      yape,
-      total,
-      paidWashes,
-      ticket: paidWashes > 0 ? total / paidWashes : 0,
-      yapeShare: total > 0 ? yape.revenue / total : 0,
-    };
+    return { efectivo, yape, total, paidWashes, buckets, series };
   });
 
-  // Ticket promedio por canal: se deriva acá y no en el useComputed porque
-  // solo lo consume una card; el guard de división por cero es idéntico al
-  // del total.
-  const yapeCount = pagos.value.yape.washes;
-  const cashCount = pagos.value.efectivo.washes;
-  const yapeAvg = yapeCount > 0 ? pagos.value.yape.revenue / yapeCount : 0;
-  const cashAvg = cashCount > 0 ? pagos.value.efectivo.revenue / cashCount : 0;
-  const comparison = compareTickets(yapeAvg, cashAvg, yapeCount, cashCount);
+  const { efectivo, yape, total, paidWashes, buckets, series } = pagos.value;
+  const cashPct = total > 0 ? Math.round((efectivo.revenue / total) * 100) : 0;
+  const yapePct = total > 0 ? 100 - cashPct : 0;
+  // El canal con más plata manda; el empate se dice, no se desempata a dedo.
+  const cashDominant = efectivo.revenue >= yape.revenue;
+  const dominantLabel = total > 0 ? (cashDominant ? 'Efectivo' : 'Yape') : '—';
+  const dominantFoot = total === 0
+    ? 'Sin datos'
+    : efectivo.revenue === yape.revenue
+      ? 'Empate en ingreso'
+      : `${Math.max(cashPct, yapePct)}% del ingreso`;
+  const insight = paidWashes < INSIGHT_MIN_WASHES
+    ? `Aún pocos datos: ${paidWashes} de ${INSIGHT_MIN_WASHES} lavados para sacar conclusiones.`
+    : `Yape pesa ${yapePct}% del ingreso y efectivo ${cashPct}%.`;
 
   return (
     <div class={`${styles.panel} ${styles.rowsKpi}`}>
-      <section class={styles.kpis} aria-label="Indicadores de cobranza del rango activo">
+      <section class={`${styles.kpis} ${styles.kpis3}`} aria-label="Indicadores de cobranza del rango activo">
         <div class={`${styles.kpi} ${styles.kpiAccent}`}>
           <span class={styles.kpiLabel}>Total</span>
-          <span class={styles.kpiValue}>S/ {soles(pagos.value.total)}</span>
-          <span class={styles.kpiFoot}>{pagos.value.paidWashes} lavados</span>
+          <span class={styles.kpiValue}>S/ {soles(total)}</span>
+          <span class={styles.kpiFoot}>{paidWashes} lavados</span>
         </div>
 
-        <div class={styles.kpi}>
-          <span class={styles.kpiLabel}>Efectivo</span>
-          <span class={styles.kpiValue}>S/ {soles(pagos.value.efectivo.revenue)}</span>
-          <span class={styles.kpiFoot}>{pagos.value.efectivo.washes} lavados</span>
-        </div>
-
-        <div class={styles.kpi}>
-          <span class={styles.kpiLabel}>Yape</span>
-          <span class={styles.kpiValue}>S/ {soles(pagos.value.yape.revenue)}</span>
-          <span class={styles.kpiFoot}>{pagos.value.yape.washes} lavados</span>
+        <div class={`${styles.kpi} ${styles.kpiSuccess}`}>
+          <span class={styles.kpiLabel}>Lavados</span>
+          <span class={styles.kpiValue}>{paidWashes}</span>
+          <span class={styles.kpiFoot}>cobrados en el rango</span>
         </div>
 
         <div class={`${styles.kpi} ${styles.kpiInfo}`}>
-          <span class={styles.kpiLabel}>Ticket prom.</span>
-          <span class={styles.kpiValue}>S/ {soles(pagos.value.ticket)}</span>
-          <span class={styles.kpiFoot}>por lavado</span>
+          <span class={styles.kpiLabel}>Método dominante</span>
+          <span class={`${styles.kpiValue} ${styles.kpiValueText}`}>{dominantLabel}</span>
+          <span class={styles.kpiFoot}>{dominantFoot}</span>
         </div>
       </section>
 
       <section class={styles.card}>
         <header class={styles.cardHead}>
-          <h2 class={styles.cardTitle}>Métodos de pago</h2>
-          <span class={styles.cardHint}>del rango</span>
+          <h2 class={styles.cardTitle}>Reparto por método</h2>
+          <span class={styles.cardHint}>según ingreso</span>
         </header>
         <div class={styles.cardBody}>
-          <div class={`${styles.subgrid} ${styles.cols2}`}>
-            <div class={styles.table}>
-              <div class={`${styles.pagosRow} ${styles.pagosRowHead}`}>
-                <span>Método</span>
-                <span>Lavados</span>
-                <span>Ingreso</span>
-                <span>%</span>
-              </div>
-              {(['efectivo', 'yape'] as const).map((method) => {
-                const stat = pagos.value[method];
-                const pct = pagos.value.total > 0
-                  ? Math.round((stat.revenue / pagos.value.total) * 100)
-                  : 0;
-                return (
-                  <div key={method} class={styles.pagosRow}>
-                    <span class={styles.cellName}>{METHOD_LABELS[method]}</span>
-                    <span class={styles.cellNum}>{stat.washes}</span>
-                    <span class={styles.cellMoney}>S/ {soles(stat.revenue)}</span>
-                    <span class={styles.cellNum}>{pct}%</span>
-                  </div>
-                );
-              })}
-            </div>
+          <StackBar cashPct={cashPct} yapePct={yapePct} total={total} />
 
-            <Donut share={pagos.value.yapeShare} hasData={pagos.value.total > 0} />
+          <div class={styles.table}>
+            <div class={`${styles.pagosRow} ${styles.pagosRowHead}`}>
+              <span>Método</span>
+              <span>Lavados</span>
+              <span>Ingreso</span>
+              <span>%</span>
+            </div>
+            {(['efectivo', 'yape'] as const).map((method) => {
+              const stat = method === 'efectivo' ? efectivo : yape;
+              const pct = total > 0 ? Math.round((stat.revenue / total) * 100) : 0;
+              return (
+                <div key={method} class={styles.pagosRow}>
+                  <span class={styles.cellName}>{METHOD_LABELS[method]}</span>
+                  <span class={styles.cellNum}>{stat.washes}</span>
+                  <span class={styles.cellMoney}>S/ {soles(stat.revenue)}</span>
+                  <span class={styles.cellNum}>{pct}%</span>
+                </div>
+              );
+            })}
           </div>
+
+          <p class={styles.insight}>{insight}</p>
         </div>
       </section>
 
       <section class={styles.card}>
         <header class={styles.cardHead}>
-          <h2 class={styles.cardTitle}>Ticket promedio por método</h2>
-          <span class={styles.cardHint}>S/ por lavado</span>
+          <h2 class={styles.cardTitle}>Evolución</h2>
+          <span class={styles.cardHint}>yape arriba · efectivo abajo</span>
         </header>
-        <div class={styles.ticketGrid}>
-          <div class={`${styles.ticketCell} ${styles.ticketCellAccent}`}>
-            <span class={styles.ticketLabel}>Yape</span>
-            <span class={styles.ticketValue}>S/ {yapeAvg.toFixed(2)}</span>
-            <span class={styles.ticketFoot}>{yapeCount} lavados</span>
-          </div>
-          <div class={`${styles.ticketCell} ${styles.ticketCellMuted}`}>
-            <span class={styles.ticketLabel}>Efectivo</span>
-            <span class={styles.ticketValue}>S/ {cashAvg.toFixed(2)}</span>
-            <span class={styles.ticketFoot}>{cashCount} lavados</span>
-          </div>
+        <div class={styles.cardBody}>
+          <EvolutionChart buckets={buckets} series={series} />
         </div>
-        <p class={styles.ticketNote}>{comparison}</p>
       </section>
     </div>
   );
@@ -206,69 +203,74 @@ export function PagosView() {
 
 // ─── Subcomponentes ─────────────────────────────────────────────────────
 
-// La comparación solo tiene sentido con los dos canales poblados: con uno
-// vacío, "Yape cobra más" mediría contra la nada. El umbral de 50 céntimos
-// separa una diferencia real de ruido de redondeo.
-function compareTickets(
-  yapeAvg: number,
-  cashAvg: number,
-  yapeCount: number,
-  cashCount: number,
-): string {
-  if (yapeCount === 0 || cashCount === 0) {
-    const missing = yapeCount === 0 ? 'Yape' : 'Efectivo';
-    return `Sin datos de ${missing} en este rango`;
+// Barra apilada del reparto. Con plata en caja los dos segmentos se pintan a
+// escala; sin cobros no hay proporción que mostrar y se dice "Sin datos" en
+// vez de pintar un 0% que parece un dato.
+function StackBar({ cashPct, yapePct, total }: {
+  cashPct: number;
+  yapePct: number;
+  total: number;
+}) {
+  if (total <= 0) {
+    return (
+      <div class={styles.stack}>
+        <span class={styles.stackEmpty}>Sin datos</span>
+      </div>
+    );
   }
-  const diff = yapeAvg - cashAvg;
-  if (diff > 0.5) return `Yape cobra S/ ${diff.toFixed(2)} más por lavado`;
-  if (diff < -0.5) return `Yape cobra S/ ${Math.abs(diff).toFixed(2)} menos por lavado`;
-  return 'Tickets parecidos entre métodos';
-}
-
-// Donut de dos <circle>: el de abajo es el aro completo (el "resto") y el de
-// arriba se recorta con dasharray a la porción de Yape. Rotado -90° para que
-// el corte arranque a las 12 en punto, como cualquier reloj.
-function Donut({ share, hasData }: { share: number; hasData: boolean }) {
-  const pct = Math.round(share * 100);
-  const dash = share * DONUT_CIRCUMFERENCE;
 
   return (
-    <div class={styles.donutWrap}>
-      <svg
-        class={styles.donutSvg}
-        viewBox="0 0 120 120"
-        width="120"
-        height="120"
-        role="img"
-        aria-label={hasData ? `Yape: ${pct}% del ingreso del rango` : 'Sin cobros en el rango'}
-      >
-        <circle
-          cx="60"
-          cy="60"
-          r={DONUT_RADIUS}
-          fill="none"
-          stroke="var(--color-border)"
-          stroke-width="12"
-        />
-        {hasData && share > 0 && (
-          <circle
-            cx="60"
-            cy="60"
-            r={DONUT_RADIUS}
-            fill="none"
-            stroke="var(--color-accent)"
-            stroke-width="12"
-            stroke-dasharray={`${dash} ${DONUT_CIRCUMFERENCE}`}
-            stroke-dashoffset="0"
-            transform="rotate(-90 60 60)"
-          />
-        )}
-      </svg>
-
-      <div class={styles.donutCenter}>
-        <strong>{hasData ? `${pct}%` : '—'}</strong>
-        <span>Yape</span>
+    <div
+      class={styles.stack}
+      role="img"
+      aria-label={`Efectivo ${cashPct}% y Yape ${yapePct}% del ingreso del rango`}
+    >
+      <div class={styles.stackEf} style={{ width: `${cashPct}%` }}>
+        {cashPct >= LABEL_MIN_PCT ? `Efectivo ${cashPct}%` : ''}
+      </div>
+      <div class={styles.stackYa} style={{ width: `${yapePct}%` }}>
+        {yapePct >= LABEL_MIN_PCT ? `Yape ${yapePct}%` : ''}
       </div>
     </div>
+  );
+}
+
+// Evolución del ingreso: un par de barras apiladas por bucket, Yape arriba y
+// efectivo abajo. La altura se mide contra el bucket más alto (efectivo + Yape)
+// para que el pico toque el borde del gráfico y el resto se lea en proporción.
+function EvolutionChart({ buckets, series }: {
+  buckets: Bucket[];
+  series: BucketSeries[];
+}) {
+  const ceiling = Math.max(1, ...series.map((slice) => slice.efectivo + slice.yape));
+
+  return (
+    <>
+      <div class={styles.chart} role="img" aria-label="Evolución del ingreso por período">
+        {buckets.map((bucket, index) => {
+          const slice = series[index];
+          if (!slice) return null;
+          return (
+            <div
+              key={bucket.start}
+              class={styles.chartCol}
+              title={`${bucket.label}: Efectivo S/ ${soles(slice.efectivo)} · Yape S/ ${soles(slice.yape)}`}
+            >
+              {slice.yape > 0 && (
+                <span class={styles.chartBarYa} style={{ height: `${(slice.yape / ceiling) * 100}%` }} />
+              )}
+              {slice.efectivo > 0 && (
+                <span class={styles.chartBarEf} style={{ height: `${(slice.efectivo / ceiling) * 100}%` }} />
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div class={styles.chartLabels}>
+        {buckets.map((bucket) => (
+          <span key={bucket.start}>{bucket.label}</span>
+        ))}
+      </div>
+    </>
   );
 }
